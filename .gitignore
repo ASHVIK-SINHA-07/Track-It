@@ -1,2 +1,5 @@
 .env
 Implementation-Brief-001.md
+node_modules/
+dist/
+.DS_Store
