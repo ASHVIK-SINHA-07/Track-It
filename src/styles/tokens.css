@@ -9,10 +9,17 @@
   --text-muted: #89968b;
   --border: #2b332d;
   --accent: #b5e8a3;
+  --accent-hover: #c7f3b7;
+  --on-accent: #1d321c;
   --accent-soft: #253626;
   --status-info: #aac7e1;
   --status-warning: #e0c492;
   --status-danger: #dfaaaa;
+  --danger-surface: #302020;
+  --danger-hover: #452c2c;
+  --danger-border: #765050;
+  --dialog-backdrop: #000b;
+  --disabled-opacity: .5;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

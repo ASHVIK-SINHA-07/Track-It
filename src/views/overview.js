@@ -17,11 +17,11 @@ export function renderOverview() {
       ['activity', 'Activities recorded', 'Completed work, collected here'],
       ['goals', 'Active goals', 'A little direction for your effort'],
       ['leaf', 'Growth areas', 'Room for every part of you'],
-    ].map(([symbol, title, description]) => `<article class="summary-card"><div class="summary-label"><span>${title}</span>${icon(symbol)}</div><p class="summary-value"><span aria-hidden="true">—</span><span class="sr-only">Not available yet</span></p><p class="muted">${description}</p></article>`).join('')}
+    ].map(([symbol, title, description]) => `<article class="ui-card summary-card"><div class="summary-label"><span>${title}</span>${icon(symbol)}</div><p class="summary-value"><span aria-hidden="true">—</span><span class="sr-only">Not available yet</span></p><p class="muted">${description}</p></article>`).join('')}
     </section>
     <section class="growth-section" aria-labelledby="growth-title">
       <div class="section-heading"><div><h2 id="growth-title">Room to grow</h2><p>The different parts of your journey, in one place.</p></div><span class="small-tag">Example areas</span></div>
-      <div class="growth-grid">${areas.map(([number, title, description, color]) => `<article class="growth-card ${color}"><span class="area-number">${number}</span><h3>${title}</h3><p>${description}</p><span class="area-footnote">Example growth area</span></article>`).join('')}</div>
+      <div class="growth-grid">${areas.map(([number, title, description, color]) => `<article class="ui-card growth-card ${color}"><span class="area-number">${number}</span><h3>${title}</h3><p>${description}</p><span class="area-footnote">Example growth area</span></article>`).join('')}</div>
     </section>
     <section class="recent-section" aria-labelledby="recent-title">
       <div class="section-heading"><div><h2 id="recent-title">Recent activity</h2><p>Your completed work will find a home here.</p></div><a class="text-link" href="#/activity">View activity ${icon('arrow')}</a></div>

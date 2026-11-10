@@ -249,9 +249,6 @@ h1>span {
 }
 
 .summary-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
   padding: 21px;
 }
 
@@ -314,9 +311,6 @@ h2 {
 .growth-card {
   grid-column: span 2;
   padding: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
   border-top: 2px solid var(--area-color);
 }
 

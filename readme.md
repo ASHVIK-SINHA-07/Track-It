@@ -2,7 +2,7 @@
 
 A local-first personal progress tracker for recording completed work, organizing it into growth areas, and connecting it to meaningful goals.
 
-**Current stage: M0 — Foundation.** This version provides the application shell and placeholder views. Activity logging, goal management, and local persistence are planned for later milestones.
+**Current stage: M1 — Interface and Component System, ECO-004.** This version provides the M0 application shell and placeholder views, plus reusable UI foundations. Activity logging, goal management, and local persistence remain future work.
 
 ## Getting started
 
@@ -18,6 +18,7 @@ Open the local URL printed by Vite. The default port is 5173; Vite selects anoth
 ```sh
 npm run build    # Generate production files in dist/
 npm run preview  # Serve the production build locally
+npm test         # Run component and routing checks with Node's test runner
 ```
 
 ## Stack
@@ -25,7 +26,7 @@ npm run preview  # Serve the production build locally
 - Semantic HTML5, CSS3, and vanilla JavaScript ES modules.
 - Vite as the only direct development dependency, providing a development server and production bundling.
 - System fonts and inline SVG icons; no external fonts or UI libraries.
-- IndexedDB is the planned storage technology; it is not used in M0.
+- IndexedDB is the planned storage technology; it is not yet implemented.
 
 ## Implemented in M0
 
@@ -35,6 +36,19 @@ npm run preview  # Serve the production build locally
 - Activity and Goals views explaining future functionality.
 - Active navigation styling and `aria-current`, keyboard focus styling, and a skip-to-content link.
 - Hash routes with a default/unknown-route fallback, document titles, and focus management after navigation.
+
+## Added in ECO-004
+
+- Primary, secondary, and destructive buttons with disabled, hover, active, and focus states.
+- Labeled text, textarea, select, date, and number fields, with hints and accessible errors.
+- Shared card styling and a card renderer with an optional heading.
+- Reusable empty states now used by Activity and Goals.
+- A native modal dialog factory with an accessible name, Close button, and focus restoration. The browser provides Escape dismissal and modal focus containment.
+- A development-only component showcase, excluded from production builds.
+
+Run `npm run dev`, then open the printed local origin with `/?ui#/overview` (for example, `http://localhost:5173/?ui#/overview`). Scroll below the page content to the **Development only · ECO-004 component showcase** panel. It contains only UI examples; its form checks example values without saving anything. Remove `?ui` and reload to hide it. No fourth navigation route was added.
+
+See [component APIs and examples](docs/ui-components.md) for usage and safe HTML composition rules.
 
 ## Architecture
 
@@ -47,16 +61,25 @@ src/
   components/
     shell.js               Persistent layout and navigation
     icons.js               Shared decorative SVG icons
+    ui.js                  Escaped HTML renderers and field error presentation
+    dialog.js              Native dialog DOM factory and lifecycle
+  dev/
+    showcase.js            Development-only component examples and handlers
+    showcase.css           Development-only showcase layout
   views/
     overview.js            Overview placeholders and example areas
     activity.js            Activity empty state
     goals.js               Goals empty state
   styles/
     tokens.css             Shared design tokens and base styles
+    components.css         Reusable card, button, field, and dialog styles
     app.css                Layout, components, and responsive rules
+tests/
+  ui.test.js               Escaping and component markup contracts
+  router.test.js           Existing view and navigation metadata regression check
 ```
 
-Views return static HTML strings. The shell is mounted once; navigation replaces only the main content. Templates contain only developer-authored content. When editable records arrive, render user-entered values with safe DOM APIs or escaping rather than interpolating them as HTML.
+Views return HTML strings. The shell is mounted once; navigation rebuilds the main content and updates the header label, title, and active links. UI renderers escape text and attribute values. `renderCard` accepts trusted developer-composed `contentHtml`; raw user input must never be passed into that slot. Dialog headings and descriptions use `textContent`, and dialog bodies accept DOM content. No reactive framework or runtime dependency was added.
 
 Domain logic can later live in `src/services/`, IndexedDB adapters in `src/storage/`, and reusable helpers in `src/utils/`. Those folders are deliberately deferred until there is actual code for them.
 
@@ -69,20 +92,25 @@ Fragment changes create normal browser history entries, allowing Back and Forwar
 ## Planned milestones
 
 - **M0:** Project initialization, design foundations, application shell, and navigation (ECO-001–003).
-- **M1–M4:** Await their implementation briefs and approval. Future product work includes growth-area and goal management, activity logging/history, IndexedDB persistence, progress summaries, and JSON backup/restore, as described in `PRD.md`. The current brief does not assign these features to specific milestones.
+- **M1 / ECO-004:** Reusable UI foundations implemented; browser acceptance checks pending. Other M1 work awaits review and a separate brief.
+- **Future work:** Growth-area and goal management, activity logging/history, IndexedDB persistence, progress summaries, and JSON backup/restore, as described in `PRD.md`. These features are not implemented by ECO-004.
 
 ## Limitations
 
 - Summary values are placeholders, not calculated data. Growth areas are labeled examples, not saved records.
-- No forms, CRUD operations, persistence, analytics, authentication, backend, or synchronization.
+- No product forms, CRUD operations, persistence, analytics, authentication, backend, or synchronization. The development showcase contains demonstration fields only.
 - Local-first data storage is a product goal, not an implemented M0 capability. Offline caching and service workers are also not included.
-- M0 is a foundation preview, not the complete version 0.1 MVP defined by the PRD.
+- This remains a foundation preview, not the complete version 0.1 MVP defined by the PRD.
 
 ## Verification
 
 During implementation, dependency installation succeeded with zero reported vulnerabilities, and `npm run build` completed successfully. `npm run dev -- --host 127.0.0.1` started successfully and its page returned HTTP 200 outside the execution sandbox, which blocks listening on local ports. A Node smoke check using DOM stubs passed for default and invalid routes, all three views, active links, titles, focus, and the skip link. This does not verify real browser behavior.
 
-Browser automation was unavailable (the browser access host was unavailable and the native browser connection failed), so visual and interactive browser acceptance checks remain **unverified**. There is no automated browser test suite in M0.
+ECO-004 adds `npm test` with checks for HTML escaping, button semantics, field labels and errors, optional card headings and actions, and existing route rendering. The router test uses DOM stubs: it does not exercise a browser. The production build succeeds, and its output was checked to exclude showcase code and styles.
+
+The development server also started successfully for ECO-004. Vite served the transformed showcase module with HTTP 200, and its JavaScript syntax check passed. This verifies development compilation, not browser rendering or interaction.
+
+Browser automation remains unavailable (the browser access host reports unavailable), so visual and interactive browser acceptance checks remain **unverified**. There is no automated browser test suite.
 
 Before accepting M0, manually verify:
 
@@ -93,3 +121,12 @@ Before accepting M0, manually verify:
 5. At desktop, tablet, and mobile widths, inspect readability, layout, and the consistent dark theme. At **320px**, confirm there is no horizontal scrolling and bottom navigation does not obscure content.
 6. Use Tab, Shift+Tab, and Enter to navigate all links. Confirm visible focus, the skip link, and focus moving to main content after view changes.
 7. Check browser console errors and screen-reader announcements of page headings/navigation.
+
+For ECO-004, also open `/?ui#/overview` in development mode and verify:
+
+1. Every component renders correctly at desktop and 320px widths, without horizontal overflow.
+2. Buttons respond to pointer and keyboard activation; disabled controls cannot activate; focus outlines remain visible.
+3. Every field has a usable label; submitting the empty example shows an error, and entering text clears it. Check number constraints as well.
+4. Open the example dialog: its input receives focus, Tab and Shift+Tab stay inside, Escape and Close both dismiss it, and focus returns to the opener.
+5. Check the console for errors while rendering, navigating, validating, and opening/closing the dialog.
+6. Build and preview the production app; `?ui` must not display a showcase.

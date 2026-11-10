@@ -24,7 +24,7 @@ export function renderShell() {
         </div>
       </aside>
       <div class="content-shell">
-        <header class="topbar"><span>Personal workspace <span class="breadcrumb" aria-hidden="true">/</span> <span id="current-view">Overview</span></span><span class="version-badge">M0 · Foundation</span></header>
+        <header class="topbar"><span>Personal workspace <span class="breadcrumb" aria-hidden="true">/</span> <span id="current-view">Overview</span></span><span class="version-badge">M1 · UI foundations</span></header>
         <main id="main" tabindex="-1"></main>
         <footer class="content-footer"><span>Made for your own pace.</span><span>track-it.</span></footer>
       </div>
