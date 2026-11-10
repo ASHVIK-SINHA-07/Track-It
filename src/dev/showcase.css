@@ -4,8 +4,29 @@
   margin: 0 auto;
   padding: var(--space-5);
 }
-.ui-showcase > details { border-top: 1px dashed var(--accent); padding-top: var(--space-5); }
-.ui-showcase summary { cursor: pointer; color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
-.ui-showcase details > .ui-hint { margin: var(--space-3) 0 var(--space-5); }
-.ui-showcase .full-empty { min-height: 0; margin-top: 0; padding: var(--space-5); }
-.ui-showcase .ui-hint + .ui-button { margin-top: var(--space-4); }
+
+.ui-showcase>details {
+  border-top: 1px dashed var(--accent);
+  padding-top: var(--space-5);
+}
+
+.ui-showcase summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ui-showcase details>.ui-hint {
+  margin: var(--space-3) 0 var(--space-5);
+}
+
+.ui-showcase .full-empty {
+  min-height: 0;
+  margin-top: 0;
+  padding: var(--space-5);
+}
+
+.ui-showcase .ui-hint+.ui-button {
+  margin-top: var(--space-4);
+}
