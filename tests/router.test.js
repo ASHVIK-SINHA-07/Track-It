@@ -39,6 +39,14 @@ test('existing routes still render their actual views and update navigation meta
         assert.match(main.innerHTML, /href="#\/overview"/);
       }
     }
+    location.search = '?sample';
+    location.hash = '#/overview';
+    events.hashchange();
+    assert.match(main.innerHTML, /Sample data only/);
+    assert.match(main.innerHTML, /Practiced two array problems/);
+    location.search = '';
+    events.hashchange();
+    assert.doesNotMatch(main.innerHTML, /Practiced two array problems/);
     location.hash = '#/unknown';
     events.hashchange();
     assert.equal(location.hash, '#/overview');

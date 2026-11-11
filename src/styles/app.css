@@ -304,19 +304,15 @@ h2 {
 
 .growth-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
 .growth-card {
-  grid-column: span 2;
   padding: 20px;
   border-top: 2px solid var(--area-color);
 }
 
-.growth-card:nth-child(n+4) {
-  grid-column: span 3;
-}
 
 .sage {
   --area-color: #b5d9a5;
@@ -630,14 +626,7 @@ h3 {
     padding: 15px;
   }
 
-  .growth-card,
-  .growth-card:nth-child(n+4) {
-    grid-column: span 3;
-  }
-
-  .growth-card:last-child {
-    grid-column: span 6;
-  }
+  .growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .compact-empty {
     flex-wrap: wrap;
@@ -697,12 +686,6 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  .growth-card,
-  .growth-card:nth-child(n+4),
-  .growth-card:last-child {
-    grid-column: auto;
-  }
-
   .section-heading {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -729,4 +712,33 @@ h3 {
   .full-empty h2 {
     font-size: 21px;
   }
+}
+
+/* Dashboard content uses the existing surfaces, palette, and responsive shell. */
+.growth-section .full-empty, .recent-section .full-empty {
+  min-height: 0;
+  margin-top: 0;
+  padding: var(--space-5);
+}
+.recent-list { list-style: none; margin: 0; padding: 0; }
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+.recent-item + .recent-item { border-top: 1px solid var(--border); }
+.recent-item > div { min-width: 0; }
+.recent-meta, .recent-item > time, .recent-item > span {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+.recent-item > time { flex-shrink: 0; }
+@media (min-width: 761px) and (max-width: 1100px) {
+  .growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 420px) {
+  .recent-item { flex-direction: column; gap: var(--space-1); }
 }

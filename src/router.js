@@ -2,6 +2,7 @@ import { routes } from './components/shell.js';
 import { renderOverview } from './views/overview.js';
 import { renderActivity } from './views/activity.js';
 import { renderGoals } from './views/goals.js';
+import { createMockOverview } from './data/mock.js';
 
 const views = { overview: renderOverview, activity: renderActivity, goals: renderGoals };
 
@@ -17,7 +18,10 @@ export function startRouter() {
       history.replaceState(null, '', `#/${route.id}`);
     }
 
-    main.innerHTML = views[route.id]();
+    const sample = new URLSearchParams(location.search ?? '').has('sample');
+    main.innerHTML = route.id === 'overview'
+      ? renderOverview(sample ? createMockOverview() : {}, { sample })
+      : views[route.id]();
     document.title = `${route.label} · Track-It`;
     document.querySelector('#current-view').textContent = route.label;
     document.querySelectorAll('[data-route]').forEach((link) => {
