@@ -21,7 +21,7 @@ export function countWeeklyActivities(activities = [], now = new Date()) {
 }
 
 export function countActiveGoals(goals = []) {
-  return goals.filter(({ status }) => status === 'active').length;
+  return goals.filter(({ status }) => status === 'in_progress').length;
 }
 
 export function countGrowthAreas(areas = []) {

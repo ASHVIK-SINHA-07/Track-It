@@ -29,7 +29,7 @@ test('invalid or absent calendar dates do not count', () => {
 });
 
 test('active goals and unarchived growth areas are derived from supplied records', () => {
-  assert.equal(countActiveGoals([{ status: 'active' }, { status: 'completed' }, { status: 'paused' }, {}]), 1);
+  assert.equal(countActiveGoals([{ status: 'not_started' }, { status: 'in_progress' }, { status: 'completed' }, { status: 'archived' }, { status: 'active' }, {}]), 1);
   assert.equal(countGrowthAreas([{ archivedAt: null }, {}, { archivedAt: '2026-01-01' }]), 2);
   assert.deepEqual(summarizeOverview(), { weeklyActivities: 0, activeGoals: 0, growthAreas: 0 });
 });
@@ -92,4 +92,10 @@ test('all record text is escaped and visual metadata cannot inject attributes or
   assert.doesNotMatch(html, /<img|<script|undefined|class="[^"]*onerror/);
   assert.equal((html.match(/&lt;img/g) ?? []).length, 5);
   assert.match(html, /growth-card sage/);
+});
+
+test('sample goals follow the approved status contract', () => {
+  const { goals } = createMockOverview();
+  assert.ok(goals.every(({ status }) => ['not_started', 'in_progress', 'completed', 'archived'].includes(status)));
+  assert.equal(countActiveGoals(goals), 2);
 });

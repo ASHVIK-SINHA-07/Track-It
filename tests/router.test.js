@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startRouter } from '../src/router.js';
 import { routes } from '../src/components/shell.js';
+import { localDateValue } from '../src/data/activity.js';
 
 test('existing routes still render their actual views and update navigation metadata', () => {
   // Minimal DOM boundary: checks routing logic, not browser history or layout.
@@ -23,7 +24,12 @@ test('existing routes still render their actual views and update navigation meta
   globalThis.window = { addEventListener(name, handler) { events[name] = handler; }, scrollTo() {} };
 
   try {
-    startRouter();
+    let activityContext;
+    let unmounts = 0;
+    startRouter({ mountActivityView: (_main, context) => {
+      activityContext = context;
+      return () => { unmounts++; };
+    } });
     assert.equal(location.hash, '#/overview');
     for (const { id, label } of routes) {
       location.hash = `#/${id}`;
@@ -39,14 +45,24 @@ test('existing routes still render their actual views and update navigation meta
         assert.match(main.innerHTML, /href="#\/overview"/);
       }
     }
+    activityContext.workspace.addActivity({ title: 'Session-only reading', areaId: 'personal', occurredOn: localDateValue() });
+    location.hash = '#/overview';
+    events.hashchange();
+    assert.match(main.innerHTML, /Session-only reading/);
+    assert.equal(unmounts, 1);
+    location.hash = '#/activity';
+    events.hashchange();
+    assert.match(main.innerHTML, /Session-only reading/);
     location.search = '?sample';
     location.hash = '#/overview';
     events.hashchange();
     assert.match(main.innerHTML, /Sample data only/);
+    assert.doesNotMatch(main.innerHTML, /Session-only reading/);
     assert.match(main.innerHTML, /Practiced two array problems/);
     location.search = '';
     events.hashchange();
     assert.doesNotMatch(main.innerHTML, /Practiced two array problems/);
+    assert.match(main.innerHTML, /Session-only reading/);
     location.hash = '#/unknown';
     events.hashchange();
     assert.equal(location.hash, '#/overview');

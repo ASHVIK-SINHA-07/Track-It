@@ -18,16 +18,17 @@ export function renderButton({ label, variant = 'primary', type = 'button', disa
 export function renderField({
   id = `ui-field-${++nextId}`, name = id, label, type = 'text', value = '',
   hint = '', error = '', required = false, disabled = false, options = [],
-  min, max, step,
+  min, max, step, maxLength,
 } = {}) {
   if (!['text', 'textarea', 'select', 'date', 'number'].includes(type)) throw new Error('Unknown field type');
   const safeId = escapeHtml(id);
   const describedBy = [hint && `${id}-hint`, `${id}-error`].filter(Boolean).join(' ');
   const attributes = `id="${safeId}" name="${escapeHtml(name)}" class="ui-control" aria-describedby="${escapeHtml(describedBy)}" aria-invalid="${Boolean(error)}"${required ? ' required' : ''}${disabled ? ' disabled' : ''}`;
+  const lengthLimit = maxLength === undefined ? '' : ` maxlength="${escapeHtml(maxLength)}"`;
   let control;
 
   if (type === 'textarea') {
-    control = `<textarea ${attributes} rows="4">${escapeHtml(value)}</textarea>`;
+    control = `<textarea ${attributes}${lengthLimit} rows="4">${escapeHtml(value)}</textarea>`;
   } else if (type === 'select') {
     control = `<select ${attributes}>${options.map((option) => `<option value="${escapeHtml(option.value)}"${String(option.value) === String(value) ? ' selected' : ''}${option.disabled ? ' disabled' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>`;
   } else {
@@ -36,7 +37,7 @@ export function renderField({
         .filter(([, limit]) => limit !== undefined)
         .map(([key, limit]) => ` ${key}="${escapeHtml(limit)}"`).join('')
       : '';
-    control = `<input ${attributes} type="${type}" value="${escapeHtml(value)}"${limits}>`;
+    control = `<input ${attributes}${lengthLimit} type="${type}" value="${escapeHtml(value)}"${limits}>`;
   }
 
   return `<div class="ui-field"><label for="${safeId}">${escapeHtml(label ?? '')}${required ? ' <span class="ui-required">(required)</span>' : ''}</label>${control}${hint ? `<p class="ui-hint" id="${safeId}-hint">${escapeHtml(hint)}</p>` : ''}<p class="ui-error" id="${safeId}-error" aria-live="polite"${error ? '' : ' hidden'}>${escapeHtml(error)}</p></div>`;

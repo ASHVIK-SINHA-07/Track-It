@@ -2,12 +2,14 @@ import { routes } from './components/shell.js';
 import { renderOverview } from './views/overview.js';
 import { renderActivity } from './views/activity.js';
 import { renderGoals } from './views/goals.js';
-import { createMockOverview } from './data/mock.js';
+import { createWorkspace } from './data/workspace.js';
+import { mountActivity } from './components/quick-log.js';
 
 const views = { overview: renderOverview, activity: renderActivity, goals: renderGoals };
 
-export function startRouter() {
+export function startRouter({ workspace = createWorkspace(), mountActivityView = mountActivity } = {}) {
   const main = document.querySelector('#main');
+  let unmountActivity;
 
   function renderRoute(moveFocus = false) {
     const requested = location.hash.slice(2);
@@ -19,9 +21,11 @@ export function startRouter() {
     }
 
     const sample = new URLSearchParams(location.search ?? '').has('sample');
-    main.innerHTML = route.id === 'overview'
-      ? renderOverview(sample ? createMockOverview() : {}, { sample })
-      : views[route.id]();
+    const mode = sample ? 'sample' : 'personal';
+    unmountActivity?.();
+    unmountActivity = undefined;
+    main.innerHTML = views[route.id](workspace.getData(mode), { sample });
+    if (route.id === 'activity') unmountActivity = mountActivityView(main, { workspace, mode });
     document.title = `${route.label} · Track-It`;
     document.querySelector('#current-view').textContent = route.label;
     document.querySelectorAll('[data-route]').forEach((link) => {

@@ -33,7 +33,7 @@ export function renderOverview({ areas = [], goals = [], activities = [] } = {},
   const recent = sortRecentActivities(activities).slice(0, 5);
   return `
     <div class="page-heading"><p class="eyebrow">THE BIG PICTURE</p><h1>Your progress, at a glance<span>.</span></h1><p>A space for what you’ve done, and where it’s taking you.</p></div>
-    <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${sample ? 'Sample data only. These illustrative activities and goals are not your accomplishments. Nothing is saved.' : 'Your workspace starts empty. Activity logging and goal tracking are coming in future milestones.'}</p><span class="small-tag">${sample ? 'Sample data' : 'Personal workspace'}</span><a class="text-link" href="${sample ? '?' : '?sample'}#/overview">${sample ? 'Exit sample view' : 'Explore sample data'}</a></div>
+    <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${sample ? 'Sample data only. These illustrative activities and goals are not your accomplishments. Nothing is saved.' : 'Your activities are temporary and disappear on refresh. Starter growth areas are ready for logging.'}</p><span class="small-tag">${sample ? 'Sample data' : 'Personal workspace'}</span><a class="text-link" href="${sample ? '?' : '?sample'}#/overview">${sample ? 'Exit sample view' : 'Explore sample data'}</a></div>
     <section class="summary-grid" aria-label="${sample ? 'Sample progress summary' : 'Progress summary'}">
       ${[
         ['activity', 'Activities this week', summary.weeklyActivities, 'Monday–Sunday · local calendar'],
@@ -47,6 +47,6 @@ export function renderOverview({ areas = [], goals = [], activities = [] } = {},
     </section>
     <section class="recent-section" aria-labelledby="recent-title">
       <div class="section-heading"><div><h2 id="recent-title">Recent activity</h2><p>${sample ? 'Illustrative completed work, newest first.' : 'Your completed work will find a home here.'}</p></div><a class="text-link" href="#/activity">View activity ${icon('arrow')}</a></div>
-      ${recent.length ? `<ul class="recent-list ui-card">${recent.map(activity => renderRecentActivity(activity, areas, goals)).join('')}</ul>` : renderEmptyState({ id: 'empty-activities', title: 'A fresh start', message: 'No activities recorded yet. When activity logging arrives, this space will tell your story.', iconName: 'activity' })}
+      ${recent.length ? `<ul class="recent-list ui-card">${recent.map(activity => renderRecentActivity(activity, areas, goals)).join('')}</ul>` : renderEmptyState({ id: 'empty-activities', title: 'A fresh start', message: 'No activities recorded yet. Open Activity to log completed work in this temporary workspace.', iconName: 'activity' })}
     </section>`;
 }

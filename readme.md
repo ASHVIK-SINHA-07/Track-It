@@ -2,7 +2,7 @@
 
 A local-first personal progress tracker for recording completed work, organizing it into growth areas, and connecting it to meaningful goals.
 
-**Current stage: M1 — Interface and Component System, ECO-004.** This version provides the M0 application shell and placeholder views, plus reusable UI foundations. Activity logging, goal management, and local persistence remain future work.
+**Current stage: M1 — Interface and Component System, ECO-006.** The app includes a data-driven Overview, reusable UI components, and temporary activity logging. Entries exist only in memory and disappear on refresh. Goal management and local persistence remain future work.
 
 ## Getting started
 
@@ -18,7 +18,7 @@ Open the local URL printed by Vite. The default port is 5173; Vite selects anoth
 ```sh
 npm run build    # Generate production files in dist/
 npm run preview  # Serve the production build locally
-npm test         # Run component and routing checks with Node's test runner
+npm test         # Run data, validation, controller, component, and routing checks
 ```
 
 ## Stack
@@ -63,21 +63,27 @@ src/
     icons.js               Shared decorative SVG icons
     ui.js                  Escaped HTML renderers and field error presentation
     dialog.js              Native dialog DOM factory and lifecycle
+    quick-log.js           Activity form events, dialog lifecycle, and history updates
   data/
     overview.js            Pure summary, local calendar, and sorting helpers
     mock.js                Explicit sample dataset factory; no storage
+    areas.js               Starter growth-area definitions
+    activity.js            Pure input validation and local date helpers
+    workspace.js           Isolated personal/sample memory collections
   dev/
     showcase.js            Development-only component examples and handlers
     showcase.css           Development-only showcase layout
   views/
     overview.js            Data-driven dashboard and empty states
-    activity.js            Activity empty state
+    activity.js            Activity page, history, and quick-log form markup
     goals.js               Goals empty state
   styles/
     tokens.css             Shared design tokens and base styles
     components.css         Reusable card, button, field, and dialog styles
     app.css                Layout, components, and responsive rules
 tests/
+  activity.test.js         Validation, creation, isolation, dates, and rendering
+  quick-log.test.js        Submission and dialog controller boundary checks
   overview.test.js         Summary, sorting, empty data, and safe rendering
   ui.test.js               Escaping and component markup contracts
   router.test.js           Existing view and navigation metadata regression check
@@ -98,12 +104,13 @@ Fragment changes create normal browser history entries, allowing Back and Forwar
 - **M0:** Project initialization, design foundations, application shell, and navigation (ECO-001–003).
 - **M1 / ECO-004:** Reusable UI foundations implemented; browser acceptance checks pending.
 - **M1 / ECO-005:** Data-driven Overview implemented with an empty personal workspace and explicit sample preview; browser acceptance checks pending.
-- **Future work:** Growth-area and goal management, activity logging/history, IndexedDB persistence, progress summaries, and JSON backup/restore, as described in `PRD.md`. Storage and record management remain deferred after ECO-005.
+- **M1 / ECO-006:** Temporary activity logging and shared Overview data implemented; native browser checks pending.
+- **Future work:** Growth-area and goal management, editing/deleting records, IndexedDB persistence, advanced summaries, and JSON backup/restore, as described in `PRD.md`.
 
 ## Limitations
 
-- The default Overview is empty. `?sample#/overview` explicitly displays illustrative records, labeled as sample data; nothing is saved.
-- No product forms, CRUD operations, persistence, analytics, authentication, backend, or synchronization. The development showcase contains demonstration fields only.
+- The personal workspace starts with five starter growth areas and no activities or goals. `?sample#/overview` displays isolated illustrative records; nothing is saved.
+- The Activity form creates temporary in-memory records only. There is no persistent CRUD, editing/deleting, analytics, authentication, backend, or synchronization. The development showcase still contains demonstration fields only.
 - Local-first data storage is a product goal, not an implemented M0 capability. Offline caching and service workers are also not included.
 - This remains a foundation preview, not the complete version 0.1 MVP defined by the PRD.
 
@@ -138,12 +145,20 @@ For ECO-004, also open `/?ui#/overview` in development mode and verify:
 
 ## ECO-005 dashboard data flow and verification
 
-Open the normal Overview for an empty personal workspace. Choose **Explore sample data** (or visit `/?sample#/overview`) to view five illustrative growth areas, three goals, and four completed activities. **Exit sample view** returns to the empty workspace. The `sample` query parameter survives hash navigation; sample records are only rendered on Overview. `?ui&sample#/overview` also keeps the existing development component showcase available.
+ECO-005 initially provided an empty personal workspace; ECO-006 now supplies five starter areas while leaving activities and goals empty. Choose **Explore sample data** (or visit `/?sample#/overview`) to view five illustrative growth areas, three goals, and four completed activities. **Exit sample view** reloads the personal workspace. Switching sample mode via these links reloads the page and clears temporary entries. The `sample` query parameter survives hash navigation; Overview and Activity share the selected mode’s records. `?ui&sample#/overview` also keeps the existing development component showcase available.
 
-The router selects either an empty dataset or `createMockOverview()`, then supplies `{ areas, goals, activities }` to `renderOverview`. The renderer imports calculation helpers, not the mock module. A future data adapter can supply the same arrays without rewriting the view. No records are written to storage. Optional area descriptions are presentation metadata added alongside the agreed fields.
+The router owns an in-memory workspace, seeded with starter areas for personal mode and `createMockOverview()` for sample mode, then supplies `{ areas, goals, activities }` to `renderOverview`. The renderer imports calculation helpers, not the mock module. A future data adapter can supply the same arrays without rewriting the view. No records are written to storage. Optional area descriptions are presentation metadata added alongside the agreed fields.
 
-`countWeeklyActivities` compares valid `occurredOn` calendar dates against local Monday midnight (inclusive) and the next Monday (exclusive). Calendar arithmetic handles month/year and daylight-saving transitions; dates are never parsed as UTC. The default clock is the current local date, while tests inject a fixed date. The count covers the full Monday–Sunday week. Active goals have `status === 'active'`; current growth areas have no `archivedAt` value. All empty arrays yield zero. Area cards count all associated activity records. Recent activities are copied and sorted by date descending, then ID ascending, preserving input order if both tie; invalid dates sort last and display “Date unavailable.” At most five records render. Goal text appears only for a resolved link; absent durations require no placeholder. Text is escaped, and colors/icons are selected from allowlists.
+`countWeeklyActivities` compares valid `occurredOn` calendar dates against local Monday midnight (inclusive) and the next Monday (exclusive). Calendar arithmetic handles month/year and daylight-saving transitions; dates are never parsed as UTC. The default clock is the current local date, while tests inject a fixed date. The count covers the full Monday–Sunday week. Active goals have `status === 'in_progress'`; current growth areas have no `archivedAt` value. All empty arrays yield zero. Area cards count all associated activity records. Recent activities are copied and sorted by date descending, then ID ascending, preserving input order if both tie; invalid dates sort last and display “Date unavailable.” At most five records render. Goal text appears only for a resolved link; absent durations require no placeholder. Text is escaped, and colors/icons are selected from allowlists.
 
 Verification: all 14 Node tests (including ECO-004 and router regression tests) and the production build pass. Overview tests also pass under UTC, Asia/Kolkata, and America/New_York, including DST boundary cases. The browser access host is unavailable in this session, so responsive visual checks, keyboard interaction, and real browser navigation remain unverified. The area grid uses three desktop columns, two tablet columns, and one narrow-mobile column; existing shell and bottom navigation rules remain in place.
 
 For browser review, check both empty and sample views at 1440px, 1024px, 768px, 420px, and 320px. Check that long area names/activity titles wrap without overflow, the sample notice remains visible, summaries are readable, recent activity dates and goal labels remain readable, and bottom navigation clears the final content. Recheck ECO-004 with `?ui&sample` using the checklist above.
+
+## ECO-006 temporary activity logging
+
+Open `#/activity` and choose **Log Activity**. The native dialog collects a title, growth area, local calendar date, optional linked goal, optional duration, and notes. A valid submission updates history immediately. Navigate to Overview to see updated weekly and area counts. Entries disappear on refresh; sample-mode entries never enter the personal collection. Closing and reopening the dialog retains its draft while Activity stays mounted; navigating away discards that draft.
+
+See [activity architecture, data contract, validation, and browser checklist](docs/activity-logging.md).
+
+Verification: all 28 tests pass, including the ECO-004/ECO-005 regressions, approved goal statuses, activity validation, safe rendering, state isolation, controller submission, draft retention, and cross-route updates. The suite also passes in UTC, Asia/Kolkata, and America/New_York. Production build and whitespace checks pass. Controller tests use a small DOM boundary and do not establish native browser behavior. The browser access host remains unavailable, so the checklist in the linked document still requires browser review.
