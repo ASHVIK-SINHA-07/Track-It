@@ -3,6 +3,12 @@ import { renderButton, renderCard, renderField, renderEmptyState, setFieldError 
 import { createDialog } from '../components/dialog.js';
 
 export function mountShowcase() {
+  const buttonVariants = ['primary', 'secondary', 'destructive'];
+  let buttonsHtml = '';
+  for (const variant of buttonVariants) {
+    buttonsHtml += renderButton({ label: variant + ' demo', variant: variant, id: 'demo-' + variant });
+    buttonsHtml += renderButton({ label: variant + ' disabled', variant: variant, disabled: true });
+  }
   const showcase = document.createElement('section');
   showcase.className = 'ui-showcase';
   showcase.setAttribute('aria-label', 'Development-only component showcase');
@@ -11,7 +17,7 @@ export function mountShowcase() {
       <summary>Development only · ECO-004 component showcase</summary>
       <p class="ui-hint">UI examples only. Nothing here creates activities, goals, or saved data. Remove ?ui from the URL to hide this panel.</p>
       <div class="ui-stack">
-        ${renderCard({ title: 'Buttons', contentHtml: `<div class="ui-actions">${['primary', 'secondary', 'destructive'].map((variant) => renderButton({ label: `${variant} demo`, variant, id: `demo-${variant}` }) + renderButton({ label: `${variant} disabled`, variant, disabled: true })).join('')}</div>` })}
+        ${renderCard({ title: 'Buttons', contentHtml: `<div class="ui-actions">${buttonsHtml}</div>` })}
         ${renderCard({ title: 'Labeled fields', contentHtml: `
           <form id="demo-fields" class="ui-stack" novalidate>
             ${renderField({ id: 'demo-text', label: 'Example text', required: true, hint: 'Submit the empty example to see its error state.' })}
@@ -31,27 +37,40 @@ export function mountShowcase() {
 
   document.querySelector('.content-footer').before(showcase);
   const status = showcase.querySelector('#demo-status');
-  for (const variant of ['primary', 'secondary', 'destructive']) {
-    showcase.querySelector(`#demo-${variant}`).addEventListener('click', () => {
+  for (const variant of buttonVariants) {
+    showcase.querySelector(`#demo-${variant}`).addEventListener('click', function showButtonStatus() {
       status.textContent = `${variant} demonstration pressed. No data was changed.`;
     });
   }
 
   const text = showcase.querySelector('#demo-text');
   const number = showcase.querySelector('#demo-number');
-  const validateText = () => setFieldError(text, text.value.trim() ? '' : 'Enter some example text.');
-  const validateNumber = () => setFieldError(number, number.validity.valid ? '' : 'Use a whole number from 0 to 100.');
-  text.addEventListener('input', () => {
+  function validateText() {
+    let message = '';
+    if (text.value.trim() === '') message = 'Enter some example text.';
+    setFieldError(text, message);
+  }
+
+  function validateNumber() {
+    let message = '';
+    if (!number.validity.valid) message = 'Use a whole number from 0 to 100.';
+    setFieldError(number, message);
+  }
+  text.addEventListener('input', function handleTextInput() {
     if (text.getAttribute('aria-invalid') === 'true') validateText();
   });
   number.addEventListener('input', validateNumber);
-  showcase.querySelector('#demo-fields').addEventListener('submit', (event) => {
+  showcase.querySelector('#demo-fields').addEventListener('submit', function checkExampleFields(event) {
     event.preventDefault();
     validateText();
     validateNumber();
     const invalid = showcase.querySelector('[aria-invalid="true"]');
     if (invalid) invalid.focus();
-    status.textContent = invalid ? 'Example validation errors are displayed.' : 'Example fields checked. Nothing was saved.';
+    if (invalid) {
+      status.textContent = 'Example validation errors are displayed.';
+    } else {
+      status.textContent = 'Example fields checked. Nothing was saved.';
+    }
   });
 
   const content = document.createElement('div');
@@ -65,5 +84,8 @@ export function mountShowcase() {
   });
   document.body.append(dialog.element);
   const opener = showcase.querySelector('#demo-dialog-open');
-  opener.addEventListener('click', () => dialog.open(opener));
+  function openExampleDialog() {
+    dialog.open(opener);
+  }
+  opener.addEventListener('click', openExampleDialog);
 }

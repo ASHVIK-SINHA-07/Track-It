@@ -1,5 +1,8 @@
 // A DOM factory keeps event listeners alongside the dialog they belong to.
-export function createDialog({ title, description = '', content } = {}) {
+export function createDialog(options = {}) {
+  const title = options.title;
+  const description = options.description || '';
+  const content = options.content;
   const element = document.createElement('dialog');
   element.className = 'ui-dialog';
   const heading = document.createElement('h2');
@@ -36,19 +39,20 @@ export function createDialog({ title, description = '', content } = {}) {
     element.close();
   }
   closeButton.addEventListener('click', close);
-  element.addEventListener('close', () => {
-    if (opener?.isConnected) opener.focus();
-  });
+  function restoreFocus() {
+    if (opener && opener.isConnected) {
+      opener.focus();
+    }
+  }
+  element.addEventListener('close', restoreFocus);
 
-  return {
-    element,
-    open(trigger = document.activeElement) {
-      if (element.open) return;
-      opener = trigger;
-      element.showModal(); // Native modality, focus containment, and Escape handling.
-    },
-    close,
-  };
+  function open(trigger = document.activeElement) {
+    if (element.open) return;
+    opener = trigger;
+    element.showModal(); // The browser handles modal focus and Escape.
+  }
+
+  return { element: element, open: open, close: close };
 }
 
 let dialogCount = 0;

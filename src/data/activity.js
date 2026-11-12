@@ -3,31 +3,103 @@ import { parseCalendarDate } from './overview.js';
 export const ACTIVITY_LIMITS = Object.freeze({ title: 160, note: 4000 });
 
 export function localDateValue(now = new Date()) {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
 }
 
 export function availableGoals(goals, areaId) {
-  return goals.filter(goal => goal.areaId === areaId);
+  const matchingGoals = [];
+  for (const goal of goals) {
+    if (goal.areaId === areaId) {
+      matchingGoals.push(goal);
+    }
+  }
+  return matchingGoals;
 }
 
-export function validateActivity(input, { areas = [], goals = [] } = {}) {
-  const text = key => String(input[key] ?? '');
-  const title = text('title').trim();
-  const note = text('note');
-  const areaId = text('areaId');
-  const goalId = text('goalId') || null;
-  const occurredOn = text('occurredOn');
-  const duration = text('durationMinutes').trim();
+function getText(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return String(value);
+}
+
+export function validateActivity(input, data = {}) {
+  const areas = data.areas || [];
+  const goals = data.goals || [];
+  const enteredTitle = getText(input.title);
+  const title = enteredTitle.trim();
+  const note = getText(input.note);
+  const areaId = getText(input.areaId);
+  const occurredOn = getText(input.occurredOn);
+  const duration = getText(input.durationMinutes).trim();
   const errors = {};
-  if (!title) errors.title = 'Enter an activity title.';
-  else if (text('title').length > ACTIVITY_LIMITS.title) errors.title = `Use ${ACTIVITY_LIMITS.title} characters or fewer.`;
-  if (note.length > ACTIVITY_LIMITS.note) errors.note = `Use ${ACTIVITY_LIMITS.note} characters or fewer.`;
-  if (!areas.some(area => area.id === areaId && area.archivedAt == null)) errors.areaId = 'Choose an available growth area.';
-  if (!parseCalendarDate(occurredOn)) errors.occurredOn = 'Enter a valid calendar date.';
-  if (goalId && !availableGoals(goals, areaId).some(goal => goal.id === goalId)) errors.goalId = 'Choose a goal from the selected growth area, or leave it unconnected.';
-  if (duration && (!/^\d+$/.test(duration) || !Number.isSafeInteger(Number(duration)))) errors.durationMinutes = 'Enter a nonnegative whole number of minutes, or leave it blank.';
+
+  let goalId = getText(input.goalId);
+  if (goalId === '') {
+    goalId = null;
+  }
+
+  if (title === '') {
+    errors.title = 'Enter an activity title.';
+  } else if (enteredTitle.length > ACTIVITY_LIMITS.title) {
+    errors.title = 'Use ' + ACTIVITY_LIMITS.title + ' characters or fewer.';
+  }
+
+  if (note.length > ACTIVITY_LIMITS.note) {
+    errors.note = 'Use ' + ACTIVITY_LIMITS.note + ' characters or fewer.';
+  }
+
+  let areaIsValid = false;
+  for (const area of areas) {
+    // == null accepts both a missing archive date and an explicit null.
+    if (area.id === areaId && area.archivedAt == null) {
+      areaIsValid = true;
+      break;
+    }
+  }
+  if (!areaIsValid) {
+    errors.areaId = 'Choose an available growth area.';
+  }
+
+  if (!parseCalendarDate(occurredOn)) {
+    errors.occurredOn = 'Enter a valid calendar date.';
+  }
+
+  if (goalId !== null) {
+    let goalIsValid = false;
+    for (const goal of goals) {
+      if (goal.id === goalId && goal.areaId === areaId) {
+        goalIsValid = true;
+        break;
+      }
+    }
+    if (!goalIsValid) {
+      errors.goalId = 'Choose a goal from the selected growth area, or leave it unconnected.';
+    }
+  }
+
+  let durationMinutes = null;
+  if (duration !== '') {
+    durationMinutes = Number(duration);
+    // This pattern accepts digits only, excluding decimals and negative numbers.
+    const containsOnlyDigits = /^\d+$/.test(duration);
+    if (!containsOnlyDigits || !Number.isSafeInteger(durationMinutes)) {
+      errors.durationMinutes = 'Enter a nonnegative whole number of minutes, or leave it blank.';
+    }
+  }
+
   return {
-    errors,
-    value: { title, areaId, goalId, occurredOn, durationMinutes: duration ? Number(duration) : null, note },
+    errors: errors,
+    value: {
+      title: title,
+      areaId: areaId,
+      goalId: goalId,
+      occurredOn: occurredOn,
+      durationMinutes: durationMinutes,
+      note: note,
+    },
   };
 }

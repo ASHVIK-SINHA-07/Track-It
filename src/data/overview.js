@@ -1,49 +1,102 @@
-// Calendar dates stay local: parsing YYYY-MM-DD with new Date(string) would use UTC.
+// Parse calendar dates in local time; new Date('YYYY-MM-DD') would use UTC.
 export function parseCalendarDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split('-').map(Number);
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const parts = value.split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
   const date = new Date(0);
   date.setFullYear(year, month - 1, day);
   date.setHours(0, 0, 0, 0);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+
+  // JavaScript rolls impossible dates into the next month. Reject those dates.
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return date;
 }
 
 export function countWeeklyActivities(activities = [], now = new Date()) {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+  let daysSinceMonday = start.getDay() - 1;
+  if (start.getDay() === 0) {
+    daysSinceMonday = 6; // Sunday is day 0 in JavaScript.
+  }
+  start.setDate(start.getDate() - daysSinceMonday);
+
+  // Move by calendar days so daylight-saving changes are handled correctly.
   const end = new Date(start);
-  // Calendar arithmetic also works when daylight saving changes the week's length.
   end.setDate(end.getDate() + 7);
-  return activities.filter(({ occurredOn }) => {
-    const date = parseCalendarDate(occurredOn);
-    return date && date >= start && date < end;
-  }).length;
+
+  let count = 0;
+  for (const activity of activities) {
+    const date = parseCalendarDate(activity.occurredOn);
+    if (date && date >= start && date < end) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 export function countActiveGoals(goals = []) {
-  return goals.filter(({ status }) => status === 'in_progress').length;
+  let count = 0;
+  for (const goal of goals) {
+    if (goal.status === 'in_progress') {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 export function countGrowthAreas(areas = []) {
-  return areas.filter(({ archivedAt }) => archivedAt == null).length;
+  let count = 0;
+  for (const area of areas) {
+    if (area.archivedAt == null) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
-export function summarizeOverview({ areas = [], goals = [], activities = [] } = {}, now = new Date()) {
+export function summarizeOverview(data = {}, now = new Date()) {
   return {
-    weeklyActivities: countWeeklyActivities(activities, now),
-    activeGoals: countActiveGoals(goals),
-    growthAreas: countGrowthAreas(areas),
+    weeklyActivities: countWeeklyActivities(data.activities || [], now),
+    activeGoals: countActiveGoals(data.goals || []),
+    growthAreas: countGrowthAreas(data.areas || []),
   };
 }
 
+function compareActivities(first, second) {
+  const firstDate = parseCalendarDate(first.occurredOn);
+  const secondDate = parseCalendarDate(second.occurredOn);
+  let firstTime = -Infinity;
+  let secondTime = -Infinity;
+  if (firstDate) {
+    firstTime = firstDate.getTime();
+  }
+  if (secondDate) {
+    secondTime = secondDate.getTime();
+  }
+
+  // A negative result puts the first record before the second.
+  if (firstTime > secondTime) return -1;
+  if (firstTime < secondTime) return 1;
+
+  let firstId = '';
+  let secondId = '';
+  if (first.id != null) firstId = String(first.id);
+  if (second.id != null) secondId = String(second.id);
+  if (firstId < secondId) return -1;
+  if (firstId > secondId) return 1;
+  return 0;
+}
+
 export function sortRecentActivities(activities = []) {
-  // Sort a copy. Invalid dates go last; IDs break same-day ties, then input order.
-  return [...activities].sort((a, b) => {
-    const dateA = parseCalendarDate(a.occurredOn)?.getTime() ?? -Infinity;
-    const dateB = parseCalendarDate(b.occurredOn)?.getTime() ?? -Infinity;
-    if (dateA !== dateB) return dateA > dateB ? -1 : 1;
-    const idA = String(a.id ?? '');
-    const idB = String(b.id ?? '');
-    return idA < idB ? -1 : idA > idB ? 1 : 0;
-  });
+  // sort() changes an array, so sort a copy to protect the original.
+  const sortedActivities = activities.slice();
+  sortedActivities.sort(compareActivities);
+  return sortedActivities;
 }

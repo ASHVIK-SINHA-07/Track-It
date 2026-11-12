@@ -4,10 +4,19 @@ import './styles/app.css';
 import { renderShell } from './components/shell.js';
 import { startRouter } from './router.js';
 
-document.querySelector('#app').innerHTML = renderShell();
+const app = document.querySelector('#app');
+app.innerHTML = renderShell();
 startRouter();
 
-// Vite removes this branch and its showcase module from production builds.
-if (import.meta.env.DEV && new URLSearchParams(location.search).has('ui')) {
-  import('./dev/showcase.js').then(({ mountShowcase }) => mountShowcase());
+function showDevelopmentExamples(showcaseModule) {
+  showcaseModule.mountShowcase();
+}
+
+// Load examples only when ?ui is present during development.
+// Vite removes this branch from production builds.
+if (import.meta.env.DEV) {
+  const query = new URLSearchParams(location.search);
+  if (query.has('ui')) {
+    import('./dev/showcase.js').then(showDevelopmentExamples);
+  }
 }

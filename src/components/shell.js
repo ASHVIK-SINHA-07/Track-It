@@ -7,6 +7,10 @@ export const routes = [
 ];
 
 export function renderShell() {
+  let navigationHtml = '';
+  for (const route of routes) {
+    navigationHtml += `<a class="nav-link" href="#/${route.id}" data-route="${route.id}">${icon(route.id)}<span>${route.label}</span><span class="nav-indicator" aria-hidden="true"></span></a>`;
+  }
   return `
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="app-shell">
@@ -16,7 +20,7 @@ export function renderShell() {
         </a>
         <p class="nav-caption">YOUR WORKSPACE</p>
         <nav class="navigation" aria-label="Main navigation">
-          ${routes.map(({ id, label }) => `<a class="nav-link" href="#/${id}" data-route="${id}">${icon(id)}<span>${label}</span><span class="nav-indicator" aria-hidden="true"></span></a>`).join('')}
+          ${navigationHtml}
         </nav>
         <div class="sidebar-footer">
           <div class="quiet-note">${icon('leaf')}<p>A little progress.<br>A little more you.</p></div>

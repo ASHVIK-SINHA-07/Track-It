@@ -3,58 +3,113 @@ import { escapeHtml, setFieldError } from './ui.js';
 import { renderActivityForm, renderActivityHistory, renderGoalOptions } from '../views/activity.js';
 import { localDateValue } from '../data/activity.js';
 
-export function mountActivity(main, { workspace, mode }) {
+export function mountActivity(main, options) {
+  const workspace = options.workspace;
+  const mode = options.mode;
   const data = workspace.getData(mode);
   const content = document.createElement('div');
   content.innerHTML = renderActivityForm(data);
   const form = content.querySelector('form');
-  const field = name => form.elements.namedItem(name);
-  field('title').autofocus = true;
+
+  function getField(name) {
+    return form.elements.namedItem(name);
+  }
+
+  getField('title').autofocus = true;
   const dialog = createDialog({
     title: 'Log Activity',
     description: 'Temporary entries only. Nothing is saved after a refresh. Closing keeps your draft while you stay on this page.',
-    content,
+    content: content,
   });
   document.body.append(dialog.element);
   const opener = main.querySelector('#log-activity');
-  const open = () => dialog.open(opener);
-  opener.addEventListener('click', open);
+
+  function openDialog() {
+    dialog.open(opener);
+  }
 
   function updateGoals() {
-    const selected = field('goalId').value;
-    const options = renderGoalOptions(data.goals, field('areaId').value);
-    field('goalId').innerHTML = options.map(({ value, label }) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
-    field('goalId').value = options.some(({ value }) => value === selected) ? selected : '';
-    setFieldError(field('goalId'));
-  }
-  field('areaId').addEventListener('change', updateGoals);
-  form.addEventListener('submit', event => {
-    event.preventDefault();
-    const names = ['title', 'areaId', 'occurredOn', 'goalId', 'durationMinutes', 'note'];
-    const input = Object.fromEntries(names.map(name => [name, field(name).value]));
-    // Number inputs can expose an empty value for incomplete numeric text.
-    // Check badInput before adding so that such text is never silently discarded.
-    const result = field('durationMinutes').validity.badInput
-      ? { errors: { durationMinutes: 'Enter a nonnegative whole number of minutes, or clear the field.' } }
-      : workspace.addActivity(input, mode);
-    for (const name of names) setFieldError(field(name), result.errors[name] ?? '');
-    const invalid = names.find(name => result.errors[name]);
-    if (invalid) {
-      field(invalid).focus();
-      return;
+    const goalField = getField('goalId');
+    const selectedGoal = goalField.value;
+    const areaId = getField('areaId').value;
+    const goalOptions = renderGoalOptions(data.goals, areaId);
+    let optionsHtml = '';
+    let selectionIsValid = false;
+
+    for (const option of goalOptions) {
+      optionsHtml += `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`;
+      if (option.value === selectedGoal) {
+        selectionIsValid = true;
+      }
     }
-    main.querySelector('#activity-history').innerHTML = renderActivityHistory(workspace.getData(mode));
+
+    goalField.innerHTML = optionsHtml;
+    goalField.value = '';
+    if (selectionIsValid) {
+      goalField.value = selectedGoal;
+    }
+    setFieldError(goalField);
+  }
+
+  function submitActivity(event) {
+    event.preventDefault();
+    const input = {
+      title: getField('title').value,
+      areaId: getField('areaId').value,
+      occurredOn: getField('occurredOn').value,
+      goalId: getField('goalId').value,
+      durationMinutes: getField('durationMinutes').value,
+      note: getField('note').value,
+    };
+
+    let result;
+    // Browsers may expose incomplete number input as an empty value.
+    // Report that error before adding a record, rather than losing the input.
+    if (getField('durationMinutes').validity.badInput) {
+      result = {
+        errors: { durationMinutes: 'Enter a nonnegative whole number of minutes, or clear the field.' },
+      };
+    } else {
+      result = workspace.addActivity(input, mode);
+    }
+
+    const fieldNames = ['title', 'areaId', 'occurredOn', 'goalId', 'durationMinutes', 'note'];
+    let firstInvalidField = null;
+    for (const name of fieldNames) {
+      const field = getField(name);
+      const message = result.errors[name] || '';
+      setFieldError(field, message);
+      if (message && firstInvalidField === null) {
+        firstInvalidField = field;
+      }
+    }
+
+    if (firstInvalidField) {
+      firstInvalidField.focus();
+      return; // Keep the entered values so the user can correct them.
+    }
+
+    const updatedData = workspace.getData(mode);
+    main.querySelector('#activity-history').innerHTML = renderActivityHistory(updatedData);
     main.querySelector('#activity-status').textContent = 'Activity added to temporary history. It will disappear on refresh.';
     form.reset();
-    field('occurredOn').value = localDateValue();
+    getField('occurredOn').value = localDateValue();
     updateGoals();
     dialog.close();
-  });
+  }
 
-  // The router unmounts the controller before replacing this view's HTML.
-  return () => {
-    opener.removeEventListener('click', open);
-    if (dialog.element.open) dialog.close();
+  function cleanUpActivity() {
+    opener.removeEventListener('click', openDialog);
+    if (dialog.element.open) {
+      dialog.close();
+    }
     dialog.element.remove();
-  };
+  }
+
+  opener.addEventListener('click', openDialog);
+  getField('areaId').addEventListener('change', updateGoals);
+  form.addEventListener('submit', submitActivity);
+
+  // Give the router a function it can call when leaving this page.
+  return cleanUpActivity;
 }
