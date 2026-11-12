@@ -12,7 +12,7 @@ export function localDateValue(now = new Date()) {
 export function availableGoals(goals, areaId) {
   const matchingGoals = [];
   for (const goal of goals) {
-    if (goal.areaId === areaId) {
+    if (goal.areaId === areaId && goal.status !== 'archived') {
       matchingGoals.push(goal);
     }
   }
@@ -70,14 +70,15 @@ export function validateActivity(input, data = {}) {
 
   if (goalId !== null) {
     let goalIsValid = false;
-    for (const goal of goals) {
-      if (goal.id === goalId && goal.areaId === areaId) {
+    const eligibleGoals = availableGoals(goals, areaId);
+    for (const goal of eligibleGoals) {
+      if (goal.id === goalId) {
         goalIsValid = true;
         break;
       }
     }
     if (!goalIsValid) {
-      errors.goalId = 'Choose a goal from the selected growth area, or leave it unconnected.';
+      errors.goalId = 'Choose an available goal from the selected growth area, or leave it unconnected.';
     }
   }
 

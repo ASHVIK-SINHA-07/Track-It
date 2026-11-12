@@ -25,8 +25,14 @@ test('existing routes still render their actual views and update navigation meta
 
   try {
     let activityContext;
+    let goalsContext;
+    let goalsUnmounts = 0;
     let unmounts = 0;
-    startRouter({ mountActivityView: (_main, context) => {
+    function mountGoalsForTest(_main, context) {
+      goalsContext = context;
+      return function cleanUpGoals() { goalsUnmounts += 1; };
+    }
+    startRouter({ mountGoalsView: mountGoalsForTest, mountActivityView: (_main, context) => {
       activityContext = context;
       return () => { unmounts++; };
     } });
@@ -45,15 +51,26 @@ test('existing routes still render their actual views and update navigation meta
         assert.match(main.innerHTML, /href="#\/overview"/);
       }
     }
+    const createdGoal = goalsContext.workspace.addGoal({ title: 'Session-only goal', areaId: 'personal' });
+    assert.deepEqual(createdGoal.errors, {});
+    events.hashchange();
+    assert.match(main.innerHTML, /Session-only goal/);
+    assert.equal(goalsUnmounts, 1);
     activityContext.workspace.addActivity({ title: 'Session-only reading', areaId: 'personal', occurredOn: localDateValue() });
     location.hash = '#/overview';
     events.hashchange();
     assert.match(main.innerHTML, /Session-only reading/);
     assert.equal(unmounts, 1);
+    assert.equal(goalsUnmounts, 2);
     location.hash = '#/activity';
     events.hashchange();
     assert.match(main.innerHTML, /Session-only reading/);
+    assert.equal(activityContext.workspace.getData().goals[0].id, createdGoal.goal.id);
     location.search = '?sample';
+    location.hash = '#/goals';
+    events.hashchange();
+    assert.match(main.innerHTML, /Practice array fundamentals/);
+    assert.doesNotMatch(main.innerHTML, /Session-only goal/);
     location.hash = '#/overview';
     events.hashchange();
     assert.match(main.innerHTML, /Sample data only/);

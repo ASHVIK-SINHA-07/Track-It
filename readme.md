@@ -2,7 +2,7 @@
 
 A local-first personal progress tracker for recording completed work, organizing it into growth areas, and connecting it to meaningful goals.
 
-**Current stage: M1 — Interface and Component System, ECO-006.** The app includes a data-driven Overview, reusable UI components, and temporary activity logging. Entries exist only in memory and disappear on refresh. Goal management and local persistence remain future work.
+**Current stage: M1 — Interface and Component System, ECO-007A.** The app includes a data-driven Overview, reusable UI components, temporary activity logging, and goal creation/listing. Entries exist only in memory and disappear on refresh. Goal editing and local persistence remain future work.
 
 ## Getting started
 
@@ -64,11 +64,13 @@ src/
     ui.js                  Escaped HTML renderers and field error presentation
     dialog.js              Native dialog DOM factory and lifecycle
     quick-log.js           Activity form events, dialog lifecycle, and history updates
+    create-goal.js         Goal dialog events and list updates
   data/
     overview.js            Pure summary, local calendar, and sorting helpers
     mock.js                Explicit sample dataset factory; no storage
     areas.js               Starter growth-area definitions
     activity.js            Pure input validation and local date helpers
+    goals.js               Goal input validation and text limits
     workspace.js           Isolated personal/sample memory collections
   dev/
     showcase.js            Development-only component examples and handlers
@@ -76,12 +78,14 @@ src/
   views/
     overview.js            Data-driven dashboard and empty states
     activity.js            Activity page, history, and quick-log form markup
-    goals.js               Goals empty state
+    goals.js               Goals page, cards, empty state, and form markup
   styles/
     tokens.css             Shared design tokens and base styles
     components.css         Reusable card, button, field, and dialog styles
     app.css                Layout, components, and responsive rules
 tests/
+  goals.test.js            Goal validation, creation, listing, and quick-log eligibility
+  create-goal.test.js      Goal dialog submission and draft checks
   activity.test.js         Validation, creation, isolation, dates, and rendering
   quick-log.test.js        Submission and dialog controller boundary checks
   overview.test.js         Summary, sorting, empty data, and safe rendering
@@ -105,7 +109,8 @@ Fragment changes create normal browser history entries, allowing Back and Forwar
 - **M1 / ECO-004:** Reusable UI foundations implemented; browser acceptance checks pending.
 - **M1 / ECO-005:** Data-driven Overview implemented with an empty personal workspace and explicit sample preview; browser acceptance checks pending.
 - **M1 / ECO-006:** Temporary activity logging and shared Overview data implemented; native browser checks pending.
-- **Future work:** Growth-area and goal management, editing/deleting records, IndexedDB persistence, advanced summaries, and JSON backup/restore, as described in `PRD.md`.
+- **M1 / ECO-007A:** Temporary goal creation/listing and matching quick-log choices implemented; native browser checks pending.
+- **Future work:** Growth-area management, goal editing/archiving, editing/deleting records, IndexedDB persistence, advanced summaries, and JSON backup/restore, as described in `PRD.md`.
 
 ## Limitations
 
@@ -162,3 +167,13 @@ Open `#/activity` and choose **Log Activity**. The native dialog collects a titl
 See [activity architecture, data contract, validation, and browser checklist](docs/activity-logging.md).
 
 Verification: all 28 tests pass, including the ECO-004/ECO-005 regressions, approved goal statuses, activity validation, safe rendering, state isolation, controller submission, draft retention, and cross-route updates. The suite also passes in UTC, Asia/Kolkata, and America/New_York. Production build and whitespace checks pass. Controller tests use a small DOM boundary and do not establish native browser behavior. The browser access host remains unavailable, so the checklist in the linked document still requires browser review.
+
+## ECO-007A goal creation and listing
+
+On Goals, choose **Create Goal**, enter a title and growth area, and optionally add a description or target date. Titles allow 160 characters; descriptions allow 4,000. Invalid submissions retain all input and show associated field errors. Closing/reopening retains the draft while Goals stays mounted; navigating away discards the draft. Successful submission resets the form, closes the native dialog, and updates the cards. Cards preview the first 200 description characters while the full description remains in memory.
+
+`validateGoal()` checks input, and the existing workspace's `addGoal()` creates the agreed Goal record with a session ID, timestamps, and `not_started` status. `renderGoalList()` displays the collection. `mountGoals()` connects the form and dialog to that workspace. No service layer or storage was introduced.
+
+Navigate to Activity to select a new goal from the matching growth area. `availableGoals()` excludes archived goals; activity validation uses the same eligibility rule. Not started, in progress, and completed goals remain selectable. Existing activity history keeps its goal labels. Overview's Active Goals metric continues to count only `in_progress`, so creating a `not_started` goal does not increase it. Personal and sample collections stay separate; all temporary additions disappear on refresh.
+
+Verification: all 43 tests, the production build, and whitespace checks pass. Tests cover validation, optional dates, limits, safe rendering, creation, IDs/status/timestamps, listing, dialog event wiring, input retention, sample isolation, and linking a new goal through quick-log. No CSS files were changed. Browser access was unavailable, so manually check keyboard opening, title focus, Tab/Shift+Tab containment, Escape/Close dismissal, return focus, live success messages, long card text, and a usable form at 320px. Also create a goal, navigate to Activity, select its area, and confirm the new goal appears.

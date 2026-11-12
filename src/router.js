@@ -4,13 +4,16 @@ import { renderActivity } from './views/activity.js';
 import { renderGoals } from './views/goals.js';
 import { createWorkspace } from './data/workspace.js';
 import { mountActivity } from './components/quick-log.js';
+import { mountGoals } from './components/create-goal.js';
 
 export function startRouter(options = {}) {
-  // Tests can supply their own workspace and Activity setup function.
+  // Tests can supply their own workspace and page setup functions.
   const workspace = options.workspace || createWorkspace();
   const mountActivityView = options.mountActivityView || mountActivity;
+  const mountGoalsView = options.mountGoalsView || mountGoals;
   const main = document.querySelector('#main');
   let cleanUpActivity = null;
+  let cleanUpGoals = null;
 
   function renderRoute(moveFocus = false) {
     const requestedPage = location.hash.slice(2);
@@ -38,10 +41,15 @@ export function startRouter(options = {}) {
       mode = 'sample';
     }
 
-    // Remove the previous Activity dialog before replacing the page.
+    // Remove the previous page's dialog before replacing its HTML.
     if (cleanUpActivity) {
       cleanUpActivity();
       cleanUpActivity = null;
+    }
+
+    if (cleanUpGoals) {
+      cleanUpGoals();
+      cleanUpGoals = null;
     }
 
     const data = workspace.getData(mode);
@@ -51,7 +59,8 @@ export function startRouter(options = {}) {
       main.innerHTML = renderActivity(data, viewOptions);
       cleanUpActivity = mountActivityView(main, { workspace: workspace, mode: mode });
     } else if (currentRoute.id === 'goals') {
-      main.innerHTML = renderGoals();
+      main.innerHTML = renderGoals(data, viewOptions);
+      cleanUpGoals = mountGoalsView(main, { workspace: workspace, mode: mode });
     } else {
       main.innerHTML = renderOverview(data, viewOptions);
     }

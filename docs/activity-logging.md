@@ -2,7 +2,7 @@
 
 The router owns one `createWorkspace()` instance for a page session. Personal data starts with five starter growth areas and empty goals/activities. Sample data starts with the same categories plus illustrative goals and activities. The collections are separate. Adding in either mode changes only that mode. Refreshing or using the query-string sample switch recreates both collections and clears temporary entries.
 
-The five starter categories are usable classifications, not accomplishments or persisted user records. Goal creation remains deferred; the optional goal field can be exercised with sample-mode goals.
+The five starter categories are usable classifications, not accomplishments or persisted user records. ECO-007A adds temporary goal creation on Goals. New goals become available in the optional goal field when you navigate to Activity and select their area.
 
 ## Data contract
 
@@ -35,7 +35,7 @@ Snapshots keep renderers from mutating shared data. No subscriptions or framewor
 | Duration | Optional; nonnegative whole number within JavaScript's safe integer range; blank becomes null, zero remains zero |
 | Notes | Optional; at most 4,000 characters; whitespace and line breaks preserved |
 
-Goals are filtered by selected area. Changing area resets an incompatible selected goal and preserves the other fields. Compatible goals remain selected. Invalid submission shows associated inline errors, focuses the first invalid field, and keeps the form open with entered values intact. Incomplete browser number input is checked using `validity.badInput` before any record is added. Closing and reopening keeps the draft until the Activity view is unmounted; the dialog explains that scope.
+Goals are filtered by selected area and exclude `archived` goals. The same rule is enforced when validating a new activity. Changing area resets an incompatible selected goal and preserves the other fields. Compatible goals remain selected. Invalid submission shows associated inline errors, focuses the first invalid field, and keeps the form open with entered values intact. Incomplete browser number input is checked using `validity.badInput` before any record is added. Closing and reopening keeps the draft until the Activity view is unmounted; the dialog explains that scope.
 
 History and form option text use the existing escaping helper. Goal/area identifiers are validated against supplied records. Activity ordering reuses the Overview helper: date descending, ID ascending for ties, then original order if both match. Missing dates/areas show explicit fallbacks; optional goals and durations do not show invented values.
 

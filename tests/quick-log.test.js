@@ -18,8 +18,7 @@ class Element {
   remove() { this.removed = true; this.isConnected = false; }
 }
 
-function setup(mode = 'personal') {
-  const workspace = createWorkspace();
+function setup(mode = 'personal', workspace = createWorkspace()) {
   const names = ['title', 'areaId', 'occurredOn', 'goalId', 'durationMinutes', 'note'];
   const fields = Object.fromEntries(names.map(name => [name, Object.assign(new Element(), { id: `test-${name}` })]));
   const errors = Object.fromEntries(names.map(name => [`test-${name}-error`, new Element()]));
@@ -117,4 +116,24 @@ test('closing and reopening retains the draft; unmounting removes the dialog and
   } finally { context.restore(); }
   assert.equal(context.dialog.removed, true);
   assert.equal(context.parts['#log-activity'].listeners.click.length, 0);
+});
+
+
+test('quick-log opened after goal creation offers and links the new matching goal', function () {
+  const workspace = createWorkspace();
+  const result = workspace.addGoal({ title: 'Learn arrays', areaId: 'academics' });
+  const context = setup('personal', workspace);
+  try {
+    context.fields.areaId.value = 'academics';
+    context.fields.areaId.fire('change');
+    assert.match(context.fields.goalId.innerHTML, /Learn arrays/);
+    context.fields.goalId.value = result.goal.id;
+    context.fields.title.value = 'Practiced two problems';
+    context.fields.occurredOn.value = '2026-11-12';
+    context.form.fire('submit');
+    assert.equal(workspace.getData().activities[0].goalId, result.goal.id);
+    assert.match(context.parts['#activity-history'].innerHTML, /Goal: Learn arrays/);
+  } finally {
+    context.restore();
+  }
 });
