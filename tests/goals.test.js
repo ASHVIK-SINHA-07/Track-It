@@ -4,7 +4,7 @@ import { GOAL_LIMITS, validateGoal } from '../src/data/goals.js';
 import { createWorkspace } from '../src/data/workspace.js';
 import { availableGoals, validateActivity } from '../src/data/activity.js';
 import { renderGoalForm, renderGoalList, renderGoals } from '../src/views/goals.js';
-import { renderGoalOptions } from '../src/views/activity.js';
+import { renderActivityHistory, renderGoalOptions } from '../src/views/activity.js';
 import { countActiveGoals } from '../src/data/overview.js';
 
 const now = new Date(2026, 10, 12, 12);
@@ -49,7 +49,7 @@ test('optional target dates support real calendar days and reject impossible or 
     const input = { title: 'Study', areaId: 'a', targetDate: date };
     assert.deepEqual(validateGoal(input, data).errors, {});
   }
-  for (const date of ['2026-02-29', '2026-02-30', '2026-13-01', '2026-11-12T00:00:00Z', 'tomorrow']) {
+  for (const date of ['2026-02-29', '2026-02-30', '2026-13-01', '0000-01-01', '2026-11-12T00:00:00Z', 'tomorrow']) {
     const input = { title: 'Study', areaId: 'a', targetDate: date };
     assert.ok(validateGoal(input, data).errors.targetDate);
   }
@@ -87,6 +87,7 @@ test('sample and personal goals stay isolated and refresh starts a fresh collect
 
 test('Goals renders empty states, temporary notices, and newly created goal cards', function () {
   assert.match(renderGoals(), /No goals yet/);
+  assert.match(renderGoalList(), /<button[^>]*id="create-goal-empty">Create Goal<\/button>/);
   assert.match(renderGoals(), /disappear on refresh/);
   assert.match(renderGoals({}, { sample: true }), /Sample workspace/);
   const workspace = createWorkspace({ now: now });
@@ -98,6 +99,20 @@ test('Goals renders empty states, temporary notices, and newly created goal card
   assert.match(html, /datetime="2026-12-01"/);
   assert.match(html, /Work through three examples/);
   assert.doesNotMatch(html, /No goals yet/);
+});
+
+test('goal listing puts archived goals last and sorts each group newest first without changing the input', function () {
+  const goals = [
+    { title: 'Older non-archived', status: 'not_started', createdAt: '2026-11-10T12:00:00Z' },
+    { title: 'Newest archived', status: 'archived', createdAt: '2026-11-12T12:00:00Z' },
+    { title: 'Older archived', status: 'archived', createdAt: '2026-11-11T12:00:00Z' },
+    { title: 'Newest non-archived', status: 'completed', createdAt: '2026-11-11T11:00:00-05:00' },
+  ];
+  const original = structuredClone(goals);
+  const html = renderGoalList({ goals: goals });
+  const titles = Array.from(html.matchAll(/<h3>(.*?)<\/h3>/g), function (match) { return match[1]; });
+  assert.deepEqual(titles, ['Newest non-archived', 'Older non-archived', 'Newest archived', 'Older archived']);
+  assert.deepEqual(goals, original);
 });
 
 test('goal cards handle optional values, status labels, and short description previews', function () {
@@ -146,20 +161,41 @@ test('new matching goals appear in quick-log options and can be linked to an act
   assert.equal(activity.activity.goalId, result.goal.id);
 });
 
-test('archived goals are excluded from quick-log and rejected by activity validation', function () {
+test('quick-log and activity validation allow only matching not_started and in_progress goals', function () {
   const goals = [
     { id: 'new', areaId: 'a', status: 'not_started' },
     { id: 'progress', areaId: 'a', status: 'in_progress' },
     { id: 'done', areaId: 'a', status: 'completed' },
     { id: 'archived', areaId: 'a', status: 'archived' },
     { id: 'other', areaId: 'b', status: 'in_progress' },
+    { id: 'unknown', areaId: 'a', status: 'unknown' },
   ];
-  const options = availableGoals(goals, 'a');
-  assert.equal(options.length, 3);
-  const input = { title: 'Study', areaId: 'a', goalId: 'archived', occurredOn: '2026-11-12' };
-  assert.ok(validateActivity(input, { areas: data.areas, goals: goals }).errors.goalId);
-  for (const goal of options) {
+  const eligible = availableGoals(goals, 'a');
+  assert.deepEqual(eligible, goals.slice(0, 2));
+  assert.deepEqual(renderGoalOptions(goals, 'a').map(option => option.value), ['', 'new', 'progress']);
+  const input = { title: 'Study', areaId: 'a', occurredOn: '2026-11-12' };
+  for (const goal of eligible) {
     input.goalId = goal.id;
     assert.deepEqual(validateActivity(input, { areas: data.areas, goals: goals }).errors, {});
   }
+  for (const goalId of ['done', 'archived', 'other', 'unknown']) {
+    input.goalId = goalId;
+    assert.ok(validateActivity(input, { areas: data.areas, goals: goals }).errors.goalId);
+  }
+});
+
+test('completed and archived goals remain visible on previously linked activities', function () {
+  const history = renderActivityHistory({
+    areas: data.areas,
+    goals: [
+      { id: 'done', areaId: 'a', title: 'Completed goal', status: 'completed' },
+      { id: 'archived', areaId: 'a', title: 'Archived goal', status: 'archived' },
+    ],
+    activities: [
+      { title: 'My first activity', areaId: 'a', goalId: 'done', occurredOn: '2026-11-12' },
+      { title: 'My second activity', areaId: 'a', goalId: 'archived', occurredOn: '2026-11-12' },
+    ],
+  });
+  assert.match(history, /Goal: Completed goal/);
+  assert.match(history, /Goal: Archived goal/);
 });

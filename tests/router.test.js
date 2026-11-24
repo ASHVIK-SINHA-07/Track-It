@@ -48,8 +48,9 @@ test('existing routes still render their actual views and update navigation meta
       assert.equal(main.focused, true);
       if (id !== 'overview') {
         assert.match(main.innerHTML, /class="full-empty"/);
-        assert.match(main.innerHTML, /href="#\/overview"/);
       }
+      if (id === 'activity') assert.match(main.innerHTML, /href="#\/overview"/);
+      if (id === 'goals') assert.match(main.innerHTML, /id="create-goal-empty"/);
     }
     const createdGoal = goalsContext.workspace.addGoal({ title: 'Session-only goal', areaId: 'personal' });
     assert.deepEqual(createdGoal.errors, {});

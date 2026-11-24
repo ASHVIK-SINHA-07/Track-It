@@ -10,7 +10,7 @@ function createElement() {
     addEventListener(name, callback) { this.listeners[name] = callback; },
     removeEventListener(name) { delete this.listeners[name]; },
     fire(name) {
-      const event = { preventDefault: function () {} };
+      const event = { currentTarget: this, preventDefault: function () {} };
       this.listeners[name](event);
     },
     append() {
@@ -39,6 +39,7 @@ function setup(mode = 'personal') {
     for (const name of Object.keys(fields)) fields[name].value = '';
   };
   const opener = createElement();
+  const emptyOpener = mode === 'personal' ? createElement() : null;
   const list = createElement();
   const status = createElement();
   const body = createElement();
@@ -55,6 +56,7 @@ function setup(mode = 'personal') {
   const main = {
     querySelector: function (selector) {
       if (selector === '#create-goal') return opener;
+      if (selector === '#create-goal-empty') return emptyOpener;
       if (selector === '#goals-list') return list;
       return status;
     },
@@ -65,8 +67,29 @@ function setup(mode = 'personal') {
     if (original) Object.defineProperty(globalThis, 'document', original);
     else delete globalThis.document;
   }
-  return { workspace: workspace, fields: fields, errors: errors, form: form, opener: opener, list: list, status: status, dialog: body.children[0], restore: restore };
+  return { workspace: workspace, fields: fields, errors: errors, form: form, opener: opener, emptyOpener: emptyOpener, list: list, status: status, dialog: body.children[0], restore: restore };
 }
+
+test('empty-state action opens the dialog and focus moves to the remaining action after creation', function () {
+  const context = setup();
+  try {
+    context.emptyOpener.fire('click');
+    assert.equal(context.dialog.open, true);
+    context.dialog.close();
+    assert.equal(context.emptyOpener.focused, true);
+
+    context.emptyOpener.fire('click');
+    context.fields.title.value = 'First goal';
+    context.fields.areaId.value = 'academics';
+    context.form.fire('submit');
+    assert.match(context.list.innerHTML, /First goal/);
+    assert.doesNotMatch(context.list.innerHTML, /create-goal-empty/);
+    assert.equal(context.emptyOpener.listeners.click, undefined);
+    assert.equal(context.opener.focused, true);
+  } finally {
+    context.restore();
+  }
+});
 
 test('goal dialog preserves failed input and updates cards, status, and form after successful creation', function () {
   const context = setup();

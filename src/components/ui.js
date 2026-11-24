@@ -140,6 +140,8 @@ export function renderEmptyState(options = {}) {
   let actionHtml = '';
   if (options.action) {
     actionHtml = `<a class="text-link" href="${escapeHtml(options.action.href)}">${escapeHtml(options.action.label)} ${icon('arrow')}</a>`;
+  } else if (options.button) {
+    actionHtml = renderButton(options.button);
   }
   return `<section class="full-empty" aria-labelledby="${escapeHtml(id)}"><span class="empty-icon large">${icon(iconName)}</span>${badgeHtml}<h2 id="${escapeHtml(id)}">${escapeHtml(title)}</h2><p>${escapeHtml(message)}</p>${detailHtml}${actionHtml}</section>`;
 }

@@ -12,7 +12,8 @@ export function localDateValue(now = new Date()) {
 export function availableGoals(goals, areaId) {
   const matchingGoals = [];
   for (const goal of goals) {
-    if (goal.areaId === areaId && goal.status !== 'archived') {
+    const canLink = goal.status === 'not_started' || goal.status === 'in_progress';
+    if (goal.areaId === areaId && canLink) {
       matchingGoals.push(goal);
     }
   }

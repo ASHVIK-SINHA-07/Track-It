@@ -21,9 +21,11 @@ export function mountGoals(main, options) {
   });
   document.body.append(dialog.element);
   const opener = main.querySelector('#create-goal');
+  let emptyOpener = main.querySelector('#create-goal-empty');
+  const list = main.querySelector('#goals-list');
 
-  function openDialog() {
-    dialog.open(opener);
+  function openDialog(event) {
+    dialog.open(event.currentTarget);
   }
 
   function submitGoal(event) {
@@ -58,14 +60,21 @@ export function mountGoals(main, options) {
       return; // Keep all entered values until the user fixes the errors.
     }
 
-    main.querySelector('#goals-list').innerHTML = renderGoalList(workspace.getData(mode));
-    main.querySelector('#goals-status').textContent = 'Goal added to your temporary workspace. It will disappear on refresh.';
     form.reset();
     dialog.close();
+    list.innerHTML = renderGoalList(workspace.getData(mode));
+    if (emptyOpener) {
+      emptyOpener.removeEventListener('click', openDialog);
+      emptyOpener = null;
+      // The empty-state button is gone after the first goal is created.
+      opener.focus();
+    }
+    main.querySelector('#goals-status').textContent = 'Goal added to your temporary workspace. It will disappear on refresh.';
   }
 
   function cleanUpGoals() {
     opener.removeEventListener('click', openDialog);
+    if (emptyOpener) emptyOpener.removeEventListener('click', openDialog);
     if (dialog.element.open) {
       dialog.close();
     }
@@ -73,6 +82,7 @@ export function mountGoals(main, options) {
   }
 
   opener.addEventListener('click', openDialog);
+  if (emptyOpener) emptyOpener.addEventListener('click', openDialog);
   form.addEventListener('submit', submitGoal);
   return cleanUpGoals;
 }

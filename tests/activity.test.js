@@ -6,7 +6,13 @@ import { renderActivity, renderActivityForm, renderActivityHistory, renderGoalOp
 import { summarizeOverview } from '../src/data/overview.js';
 
 const now = new Date(2026, 10, 11, 23, 30);
-const data = { areas: [{ id: 'a', name: 'Area A' }, { id: 'b', name: 'Area B' }, { id: 'old', archivedAt: '2026-01-01' }], goals: [{ id: 'g', areaId: 'a', title: 'Goal A' }, { id: 'other', areaId: 'b', title: 'Goal B' }] };
+const data = {
+  areas: [{ id: 'a', name: 'Area A' }, { id: 'b', name: 'Area B' }, { id: 'old', archivedAt: '2026-01-01' }],
+  goals: [
+    { id: 'g', areaId: 'a', title: 'Goal A', status: 'in_progress' },
+    { id: 'other', areaId: 'b', title: 'Goal B', status: 'not_started' },
+  ],
+};
 const valid = { title: '  Read a chapter  ', areaId: 'a', goalId: '', occurredOn: '2026-11-11', durationMinutes: '', note: 'Keep these notes\nwith a line break.' };
 
 test('activity validation trims titles and preserves notes and optional null values', () => {

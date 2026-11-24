@@ -1,5 +1,5 @@
 import { escapeHtml, renderButton, renderEmptyState, renderField } from '../components/ui.js';
-import { GOAL_LIMITS } from '../data/goals.js';
+import { GOAL_LIMITS, sortGoals } from '../data/goals.js';
 import { parseCalendarDate } from '../data/overview.js';
 
 function getStatusLabel(status) {
@@ -41,7 +41,7 @@ function renderGoalCard(goal, areas) {
 
   return `<article class="ui-card"><h3>${escapeHtml(goal.title)}</h3>
     <p class="recent-meta">${escapeHtml(areaName)}</p>
-    <p class="recent-meta">Status: ${getStatusLabel(goal.status)}</p>
+    <p class="recent-meta"><span class="small-tag">Status: ${getStatusLabel(goal.status)}</span></p>
     ${targetDateHtml}${descriptionHtml}</article>`;
 }
 
@@ -51,15 +51,14 @@ export function renderGoalList(data = {}) {
   if (goals.length === 0) {
     return renderEmptyState({
       id: 'goals-empty-title', iconName: 'goals',
-      title: 'Make space for what matters.',
-      message: 'No goals yet. Create a goal to give your effort a direction.',
-      detail: 'Goals are temporary and disappear on refresh.',
-      action: { label: 'Back to overview', href: '#/overview' },
+      title: 'No goals yet',
+      message: 'Set a goal for a growth area, then link activities to it as you make progress.',
+      button: { label: 'Create Goal', id: 'create-goal-empty' },
     });
   }
 
   let cardsHtml = '';
-  for (const goal of goals) {
+  for (const goal of sortGoals(goals)) {
     cardsHtml += renderGoalCard(goal, areas);
   }
   return `<div class="ui-stack">${cardsHtml}</div>`;

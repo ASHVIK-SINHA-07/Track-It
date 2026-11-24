@@ -474,7 +474,8 @@ h3 {
   font-size: 11px;
 }
 
-.full-empty>.text-link {
+.full-empty>.text-link,
+.full-empty>.ui-button {
   margin-top: 25px;
 }
 

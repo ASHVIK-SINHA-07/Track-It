@@ -41,7 +41,7 @@ export function validateGoal(input, data = {}) {
   let targetDate = null;
   if (enteredDate !== '') {
     targetDate = enteredDate;
-    if (!parseCalendarDate(targetDate)) {
+    if (targetDate.startsWith('0000-') || !parseCalendarDate(targetDate)) {
       errors.targetDate = 'Enter a valid calendar date, or leave it blank.';
     }
   }
@@ -50,4 +50,26 @@ export function validateGoal(input, data = {}) {
     errors: errors,
     value: { title: title, areaId: areaId, description: description, targetDate: targetDate },
   };
+}
+
+function compareGoals(first, second) {
+  const firstArchived = first.status === 'archived';
+  const secondArchived = second.status === 'archived';
+  if (firstArchived !== secondArchived) {
+    return firstArchived ? 1 : -1;
+  }
+
+  let firstTime = Date.parse(first.createdAt);
+  let secondTime = Date.parse(second.createdAt);
+  if (Number.isNaN(firstTime)) firstTime = -Infinity;
+  if (Number.isNaN(secondTime)) secondTime = -Infinity;
+  if (firstTime > secondTime) return -1;
+  if (firstTime < secondTime) return 1;
+  return 0;
+}
+
+export function sortGoals(goals) {
+  const sortedGoals = goals.slice();
+  sortedGoals.sort(compareGoals);
+  return sortedGoals;
 }
