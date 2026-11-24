@@ -19,7 +19,11 @@ export function parseCalendarDate(value) {
   return date;
 }
 
-export function countWeeklyActivities(activities = [], now = new Date()) {
+export function hasRecordedDuration(activity) {
+  return Number.isSafeInteger(activity.durationMinutes) && activity.durationMinutes >= 0;
+}
+
+export function summarizeWeek(activities = [], now = new Date()) {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let daysSinceMonday = start.getDay() - 1;
   if (start.getDay() === 0) {
@@ -32,13 +36,21 @@ export function countWeeklyActivities(activities = [], now = new Date()) {
   end.setDate(end.getDate() + 7);
 
   let count = 0;
+  let minutes = 0n;
+  const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
   for (const activity of activities) {
     const date = parseCalendarDate(activity.occurredOn);
     if (date && date >= start && date < end) {
       count += 1;
+      dailyCounts[(date.getDay() + 6) % 7] += 1;
+      if (hasRecordedDuration(activity)) minutes += BigInt(activity.durationMinutes);
     }
   }
-  return count;
+  return { count: count, minutes: minutes, dailyCounts: dailyCounts };
+}
+
+export function countWeeklyActivities(activities = [], now = new Date()) {
+  return summarizeWeek(activities, now).count;
 }
 
 export function countActiveGoals(goals = []) {
@@ -62,8 +74,11 @@ export function countGrowthAreas(areas = []) {
 }
 
 export function summarizeOverview(data = {}, now = new Date()) {
+  const week = summarizeWeek(data.activities || [], now);
   return {
-    weeklyActivities: countWeeklyActivities(data.activities || [], now),
+    weeklyActivities: week.count,
+    weeklyMinutes: week.minutes,
+    dailyCounts: week.dailyCounts,
     activeGoals: countActiveGoals(data.goals || []),
     growthAreas: countGrowthAreas(data.areas || []),
   };

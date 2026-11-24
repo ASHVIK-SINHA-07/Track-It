@@ -111,47 +111,58 @@ async function runStoreRequest(storeName, mode, makeRequest) {
     throw new Error('Unknown Track-It object store: ' + String(storeName));
   }
 
+  return runTransaction(storeName, mode, function queueRequest(transaction) {
+    const request = makeRequest(transaction.objectStore(storeName));
+    return function readResult() { return request.result; };
+  });
+}
+
+async function runTransaction(storeNames, mode, queueRequests) {
   const connection = await openDatabase();
   try {
-    return executeTransaction(connection, storeName, mode, makeRequest);
+    return executeTransaction(connection, storeNames, mode, queueRequests);
   } catch (error) {
     // An explicit close() on the native handle does not emit a close event.
     if (error.name !== 'InvalidStateError') throw error;
     forgetDatabase(connection);
     const reopened = await openDatabase();
-    return executeTransaction(reopened, storeName, mode, makeRequest);
+    return executeTransaction(reopened, storeNames, mode, queueRequests);
   }
 }
 
-function executeTransaction(connection, storeName, mode, makeRequest) {
-  const transaction = connection.transaction(storeName, mode);
+function executeTransaction(connection, storeNames, mode, queueRequests) {
+  const transaction = connection.transaction(storeNames, mode);
   return new Promise(function waitForTransaction(resolve, reject) {
-    let request;
+    let readResult;
     let failure;
 
     function rejectTransaction() {
       const cause = failure || transaction.error;
       const detail = cause ? ' ' + cause.message : '';
-      reject(new Error('Track-It transaction failed for ' + storeName + '.' + detail, { cause: cause }));
+      reject(new Error('Track-It transaction failed for ' + storeNames + '.' + detail, { cause: cause }));
     }
 
-    transaction.oncomplete = function readResult() {
+    transaction.oncomplete = function finish() {
       if (failure) {
         rejectTransaction();
         return;
       }
-      resolve(request.result);
+      resolve(readResult());
     };
     transaction.onerror = function recordRequestError(event) {
-      failure = event.target.error;
+      if (!failure) failure = event.target.error;
     };
     transaction.onabort = rejectTransaction;
 
-    try {
-      request = makeRequest(transaction.objectStore(storeName));
-    } catch (error) {
+    function abortWith(error) {
       failure = error;
       transaction.abort();
+    }
+
+    try {
+      readResult = queueRequests(transaction, abortWith);
+    } catch (error) {
+      abortWith(error);
     }
   });
 }
@@ -202,5 +213,93 @@ export function saveRecord(storeName, record) {
 export function deleteRecord(storeName, id) {
   return runStoreRequest(storeName, 'readwrite', function removeRecord(store) {
     return store.delete(id);
+  });
+}
+
+const workspaceStores = ['areas', 'goals', 'activities', 'settings'];
+const initializedKey = 'workspace-initialized';
+
+export function initializeWorkspace(starterAreas) {
+  return runTransaction(workspaceStores, 'readwrite', function initialize(transaction) {
+    const settings = transaction.objectStore('settings');
+    const areas = transaction.objectStore('areas');
+    const marker = settings.get(initializedKey);
+    const counts = ['areas', 'goals', 'activities'].map(name => transaction.objectStore(name).count());
+    counts[counts.length - 1].onsuccess = function seedIfEmpty() {
+      if (marker.result) return;
+      if (counts.every(count => count.result === 0)) {
+        for (const area of starterAreas) areas.add(area);
+      }
+      settings.put({ key: initializedKey, value: true });
+    };
+    return function initialized() {};
+  });
+}
+
+export function readWorkspace() {
+  return runTransaction(workspaceStores, 'readonly', function read(transaction) {
+    const requests = {};
+    for (const name of workspaceStores) requests[name] = transaction.objectStore(name).getAll();
+    return function collect() {
+      return {
+        areas: requests.areas.result,
+        goals: requests.goals.result,
+        activities: requests.activities.result,
+        settings: requests.settings.result.filter(setting => setting.key !== initializedKey),
+        revision: requests.settings.result.find(setting => setting.key === initializedKey)?.revision ?? 0,
+      };
+    };
+  });
+}
+
+function writeWorkspace(storeNames, expectedRevision, queueWrite) {
+  return runTransaction(storeNames, 'readwrite', function checkRevision(transaction, abort) {
+    const settings = transaction.objectStore('settings');
+    const marker = settings.get(initializedKey);
+    let revision;
+    marker.onsuccess = function writeIfCurrent() {
+      const current = marker.result?.revision ?? 0;
+      if (expectedRevision !== undefined && current !== expectedRevision) {
+        const error = new Error('This workspace changed in another tab. Refresh before saving again.');
+        error.name = 'WorkspaceConflictError';
+        abort(error);
+        return;
+      }
+      try {
+        revision = current + 1;
+        queueWrite(transaction);
+        settings.put({ key: initializedKey, value: true, revision: revision });
+      } catch (error) {
+        abort(error);
+      }
+    };
+    return function getRevision() { return revision; };
+  });
+}
+
+export function saveWorkspaceRecord(storeName, record, revision) {
+  return writeWorkspace([storeName, 'settings'], revision, function save(transaction) {
+    assertNoBigInt(record);
+    transaction.objectStore(storeName).put(record);
+  });
+}
+
+export function deleteWorkspaceActivity(id, revision) {
+  return writeWorkspace(['activities', 'settings'], revision, function remove(transaction) {
+    transaction.objectStore('activities').delete(id);
+  });
+}
+
+export function replaceWorkspace(data, revision) {
+  return writeWorkspace(workspaceStores, revision, function replace(transaction) {
+    for (const name of workspaceStores) {
+      const store = transaction.objectStore(name);
+      store.clear();
+      for (const record of data[name]) {
+        const snapshot = structuredClone(record);
+        assertNoBigInt(snapshot);
+        store.add(snapshot);
+      }
+    }
   });
 }

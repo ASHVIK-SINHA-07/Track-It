@@ -13,6 +13,11 @@ export function escapeHtml(value) {
   return text;
 }
 
+export function storageErrorMessage(error, fallback) {
+  if (error.cause?.name === 'WorkspaceConflictError') return error.cause.message;
+  return fallback;
+}
+
 export function renderButton(options = {}) {
   let variant = options.variant;
   if (variant === undefined) variant = 'primary';

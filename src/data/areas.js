@@ -16,3 +16,17 @@ export function createStarterAreas(now = new Date()) {
   }
   return areas;
 }
+
+export const AREA_ICONS = ['leaf', 'goals', 'overview', 'activity', 'check'];
+export const AREA_COLORS = ['sage', 'blue', 'purple', 'sand', 'rose'];
+export const AREA_NAME_LIMIT = 80;
+
+export function validateArea(input) {
+  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const errors = {};
+  if (!name) errors.name = 'Enter a growth area name.';
+  else if (name.length > AREA_NAME_LIMIT) errors.name = 'Use ' + AREA_NAME_LIMIT + ' characters or fewer.';
+  if (!AREA_ICONS.includes(input.icon)) errors.icon = 'Choose an available icon.';
+  if (!AREA_COLORS.includes(input.color)) errors.color = 'Choose an available color.';
+  return { errors: errors, value: { name: name, icon: input.icon, color: input.color } };
+}

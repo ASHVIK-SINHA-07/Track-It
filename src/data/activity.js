@@ -2,8 +2,19 @@ import { parseCalendarDate } from './overview.js';
 
 export const ACTIVITY_LIMITS = Object.freeze({ title: 160, note: 4000 });
 
-export function hasRecordedDuration(activity) {
-  return Number.isSafeInteger(activity.durationMinutes) && activity.durationMinutes >= 0;
+export function filterActivities(activities, filters = {}) {
+  const query = (filters.query || '').trim().toLowerCase();
+  const matching = [];
+  for (const activity of activities) {
+    if (filters.areaId && activity.areaId !== filters.areaId) continue;
+    if (filters.goalId && activity.goalId !== filters.goalId) continue;
+    if ((filters.from || filters.to) && !parseCalendarDate(activity.occurredOn)) continue;
+    if (filters.from && activity.occurredOn < filters.from) continue;
+    if (filters.to && activity.occurredOn > filters.to) continue;
+    if (query && !activity.title.toLowerCase().includes(query) && !(activity.note || '').toLowerCase().includes(query)) continue;
+    matching.push(activity);
+  }
+  return matching;
 }
 
 export function localDateValue(now = new Date()) {
@@ -31,7 +42,7 @@ function getText(value) {
   return String(value);
 }
 
-export function validateActivity(input, data = {}) {
+export function validateActivity(input, data = {}, original = null) {
   const areas = data.areas || [];
   const goals = data.goals || [];
   const enteredTitle = getText(input.title);
@@ -57,25 +68,27 @@ export function validateActivity(input, data = {}) {
     errors.note = 'Use ' + ACTIVITY_LIMITS.note + ' characters or fewer.';
   }
 
-  let areaIsValid = false;
+  let activeArea = false;
+  let existingArea = false;
   for (const area of areas) {
-    // == null accepts both a missing archive date and an explicit null.
-    if (area.id === areaId && area.archivedAt == null) {
-      areaIsValid = true;
+    if (area.id === areaId) {
+      activeArea = area.archivedAt == null;
+      existingArea = original?.areaId === areaId;
       break;
     }
   }
-  if (!areaIsValid) {
+  if (!activeArea && !existingArea) {
     errors.areaId = 'Choose an available growth area.';
   }
 
-  if (!parseCalendarDate(occurredOn)) {
+  if (occurredOn.startsWith('0000-') || !parseCalendarDate(occurredOn)) {
     errors.occurredOn = 'Enter a valid calendar date.';
   }
 
   if (goalId !== null) {
-    let goalIsValid = false;
-    const eligibleGoals = availableGoals(goals, areaId);
+    let goalIsValid = existingArea && original.goalId === goalId
+      && goals.some(goal => goal.id === goalId && goal.areaId === areaId);
+    const eligibleGoals = activeArea ? availableGoals(goals, areaId) : [];
     for (const goal of eligibleGoals) {
       if (goal.id === goalId) {
         goalIsValid = true;

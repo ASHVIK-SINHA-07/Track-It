@@ -77,15 +77,15 @@ export function renderGoalList(data = {}) {
 }
 
 export function renderGoals(data = {}, options = {}) {
-  let message = 'Create goals in your temporary personal workspace.';
-  let badge = 'Temporary goals';
+  let message = 'Goals are saved in this browser.';
+  let badge = 'Personal workspace';
   if (options.sample) {
-    message = 'Sample workspace. Illustrative goals and any goals you add here stay separate from your personal workspace.';
+    message = 'Sample workspace. Illustrative goals and any goals you add here stay separate from your personal workspace and reset on reload.';
     badge = 'Sample data';
   }
 
   return `<div class="page-heading"><p class="eyebrow">A SENSE OF DIRECTION</p><h1>Goals<span>.</span></h1><p>Give your everyday effort something meaningful to connect to.</p></div>
-    <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${message} Entries are held in memory only and disappear on refresh.</p><span class="small-tag">${badge}</span></div>
+    <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${message}</p><span class="small-tag">${badge}</span></div>
     <div class="section-heading activity-heading"><div><h2 id="goals-list-title">Your goals</h2><p>A little direction for your effort.</p></div>${renderButton({ label: 'Create Goal', id: 'create-goal' })}</div>
     <p id="goals-status" class="ui-hint" role="status"></p>
     <section id="goals-list" aria-labelledby="goals-list-title">${renderGoalList(data)}</section>`;
@@ -98,7 +98,7 @@ export function renderGoalForm(data = {}, goal = null) {
   if (!goal) {
     areaHtml = renderGoalAreaField(data);
     statusHint = '<p class="ui-hint">New goals start with the status Not started.</p>';
-    submitLabel = 'Add temporary goal';
+    submitLabel = 'Create Goal';
   }
 
   return `<form id="${goal ? 'edit-goal-form' : 'create-goal-form'}" class="ui-stack" novalidate>
@@ -107,7 +107,7 @@ export function renderGoalForm(data = {}, goal = null) {
     ${renderField({ id: 'goal-description', name: 'description', type: 'textarea', label: 'Description (optional)', value: goal?.description, maxLength: GOAL_LIMITS.description, hint: 'Up to ' + GOAL_LIMITS.description + ' characters.' })}
     ${renderField({ id: 'goal-date', name: 'targetDate', type: 'date', label: 'Target date (optional)', value: goal?.targetDate ?? '' })}
     ${statusHint}
-    ${goal ? '<p class="ui-error" role="alert"></p>' : ''}
+    <p class="ui-error" role="alert"></p>
     ${renderButton({ label: submitLabel, type: 'submit' })}
   </form>`;
 }

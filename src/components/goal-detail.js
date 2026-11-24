@@ -3,13 +3,14 @@ import { getStatusLabel } from '../views/goals.js';
 import { renderGoalInfo, renderGoalStatus } from '../views/goal-detail.js';
 import { createGoalEditor } from './create-goal.js';
 import { createDialog } from './dialog.js';
-import { renderButton, setFieldError } from './ui.js';
+import { renderButton, setFieldError, storageErrorMessage } from './ui.js';
 
 export function mountGoalDetail(main, options) {
   const workspace = options.workspace;
   const mode = options.mode;
   const areas = options.areas;
   let goal = options.goal;
+  let saving = false;
   const info = main.querySelector('#goal-detail-info');
   const editButton = main.querySelector('#edit-goal');
   const statusActions = main.querySelector('#goal-status-actions');
@@ -32,6 +33,7 @@ export function mountGoalDetail(main, options) {
   document.body.append(archiveDialog.element);
 
   function openEditor() {
+    if (saving) return;
     editor.open(editButton);
   }
 
@@ -41,8 +43,23 @@ export function mountGoalDetail(main, options) {
     notice.textContent = 'Goal changes saved.';
   }
 
-  function changeStatus(status, restoreField = null) {
-    const result = workspace.changeGoalStatus(goal.id, status, mode);
+  async function changeStatus(status, restoreField = null) {
+    if (saving) return;
+    saving = true;
+    confirmButton.disabled = true;
+    notice.textContent = 'Saving status…';
+    let result;
+    try {
+      result = await workspace.changeGoalStatus(goal.id, status, mode);
+    } catch (error) {
+      notice.textContent = storageErrorMessage(error, 'Could not save the status. Try again.');
+      return;
+    } finally {
+      saving = false;
+      confirmButton.disabled = false;
+    }
+    if (!statusActions.isConnected) return;
+    notice.textContent = '';
     if (result.errors.status && restoreField) {
       setFieldError(restoreField, result.errors.status);
       restoreField.focus();
@@ -60,6 +77,7 @@ export function mountGoalDetail(main, options) {
   }
 
   function handleStatusClick(event) {
+    if (saving) return;
     if (event.target.id === 'advance-goal') {
       changeStatus(goalStatusOptions(goal.status)[0]);
     } else if (event.target.id === 'archive-goal') {

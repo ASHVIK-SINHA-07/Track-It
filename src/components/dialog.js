@@ -35,10 +35,16 @@ export function createDialog(options = {}) {
   element.append(body);
 
   let opener;
+  let busy = false;
   function close() {
     element.close();
   }
-  closeButton.addEventListener('click', close);
+  closeButton.addEventListener('click', function dismiss() {
+    if (!busy) close();
+  });
+  element.addEventListener('cancel', function handleEscape(event) {
+    if (busy) event.preventDefault();
+  });
   function restoreFocus() {
     if (opener && opener.isConnected) {
       opener.focus();
@@ -52,7 +58,55 @@ export function createDialog(options = {}) {
     element.showModal(); // The browser handles modal focus and Escape.
   }
 
-  return { element: element, open: open, close: close };
+  function setBusy(value) {
+    busy = value;
+    closeButton.disabled = value;
+  }
+
+  return { element: element, open: open, close: close, setBusy: setBusy };
 }
 
 let dialogCount = 0;
+
+export function confirmAction(options) {
+  const content = document.createElement('div');
+  content.className = 'ui-stack';
+  content.innerHTML = `<p role="alert" class="ui-error"></p>
+    <div class="ui-actions">
+      <button class="ui-button ui-button--secondary" type="button" data-cancel>Cancel</button>
+      <button class="ui-button ui-button--destructive" type="button" data-confirm></button>
+    </div>`;
+  const cancel = content.querySelector('[data-cancel]');
+  const confirm = content.querySelector('[data-confirm]');
+  const notice = content.querySelector('[role="alert"]');
+  cancel.autofocus = true;
+  confirm.textContent = options.confirmLabel;
+  const dialog = createDialog({ title: options.title, description: options.description, content: content });
+  document.body.append(dialog.element);
+
+  async function runAction() {
+    if (confirm.disabled) return;
+    dialog.setBusy(true);
+    cancel.disabled = true;
+    confirm.disabled = true;
+    notice.textContent = '';
+    try {
+      await options.onConfirm();
+    } catch (error) {
+      notice.textContent = error.message;
+      return;
+    } finally {
+      dialog.setBusy(false);
+      cancel.disabled = false;
+      confirm.disabled = false;
+    }
+    dialog.close();
+    options.onDone?.();
+  }
+
+  cancel.addEventListener('click', dialog.close);
+  confirm.addEventListener('click', runAction);
+  dialog.element.addEventListener('close', function removeConfirmation() { dialog.element.remove(); });
+  dialog.open(options.trigger);
+  return dialog;
+}

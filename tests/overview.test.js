@@ -31,7 +31,7 @@ test('invalid or absent calendar dates do not count', () => {
 test('active goals and unarchived growth areas are derived from supplied records', () => {
   assert.equal(countActiveGoals([{ status: 'not_started' }, { status: 'in_progress' }, { status: 'completed' }, { status: 'archived' }, { status: 'active' }, {}]), 1);
   assert.equal(countGrowthAreas([{ archivedAt: null }, {}, { archivedAt: '2026-01-01' }]), 2);
-  assert.deepEqual(summarizeOverview(), { weeklyActivities: 0, activeGoals: 0, growthAreas: 0 });
+  assert.deepEqual(summarizeOverview(), { weeklyActivities: 0, weeklyMinutes: 0n, dailyCounts: [0, 0, 0, 0, 0, 0, 0], activeGoals: 0, growthAreas: 0 });
 });
 
 test('recent sorting is newest first, breaks ties by ID, and preserves the source', () => {

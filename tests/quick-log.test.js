@@ -9,7 +9,7 @@ class Element {
   constructor() { this.listeners = {}; this.children = []; this.isConnected = true; this.value = ''; this.validity = { badInput: false }; }
   addEventListener(name, callback) { (this.listeners[name] ??= []).push(callback); }
   removeEventListener(name, callback) { this.listeners[name] = this.listeners[name]?.filter(fn => fn !== callback); }
-  fire(name) { for (const callback of this.listeners[name] ?? []) callback({ preventDefault() {} }); }
+  fire(name) { return this.listeners[name]?.[0]?.({ preventDefault() {} }); }
   setAttribute(name, value) { this[name] = value; }
   append(...children) { this.children.push(...children); }
   focus() { this.focused = true; }
@@ -23,6 +23,9 @@ function setup(mode = 'personal', workspace = createWorkspace()) {
   const fields = Object.fromEntries(names.map(name => [name, Object.assign(new Element(), { id: `test-${name}` })]));
   const errors = Object.fromEntries(names.map(name => [`test-${name}-error`, new Element()]));
   const form = new Element();
+  const submit = { disabled: false };
+  const notice = { textContent: '' };
+  form.querySelector = selector => selector.includes('submit') ? submit : notice;
   form.elements = { namedItem: name => fields[name] };
   form.reset = () => { for (const field of Object.values(fields)) field.value = ''; };
   const parts = Object.fromEntries(['#log-activity', '#activity-history', '#activity-status'].map(key => [key, new Element()]));
@@ -36,7 +39,7 @@ function setup(mode = 'personal', workspace = createWorkspace()) {
   const cleanup = mountActivity({ querySelector: key => parts[key] }, { workspace, mode });
   const dialog = body.children[0];
   return {
-    fields, form, errors, parts, dialog, workspace,
+    fields, form, errors, parts, dialog, workspace, notice, submit,
     restore() {
       cleanup();
       if (original) Object.defineProperty(globalThis, 'document', original);
@@ -47,24 +50,24 @@ function setup(mode = 'personal', workspace = createWorkspace()) {
 
 function fill(fields, values) { for (const [name, value] of Object.entries(values)) fields[name].value = value; }
 
-test('quick-log controller preserves invalid input, adds valid input, updates history, and resets only after success', () => {
+test('quick-log controller preserves invalid input, adds valid input, updates history, and resets only after success', async () => {
   const context = setup();
   const { fields, form, errors, parts, dialog, workspace } = context;
   try {
     parts['#log-activity'].fire('click');
     assert.equal(dialog.open, true);
     fill(fields, { title: '   ', areaId: 'academics', occurredOn: '2026-11-12', note: 'Keep my draft' });
-    form.fire('submit');
+    await form.fire('submit');
     assert.equal(workspace.getData().activities.length, 0);
     assert.equal(fields.note.value, 'Keep my draft');
     assert.equal(dialog.open, true);
     assert.equal(fields.title.focused, true);
     assert.match(errors['test-title-error'].textContent, /Enter an activity title/);
     fields.title.value = '  Finished a chapter  ';
-    form.fire('submit');
+    await form.fire('submit');
     assert.equal(workspace.getData().activities.length, 1);
     assert.match(parts['#activity-history'].innerHTML, /Finished a chapter/);
-    assert.match(parts['#activity-status'].textContent, /disappear on refresh/);
+    assert.match(parts['#activity-status'].textContent, /saved/i);
     assert.equal(dialog.open, false);
     assert.equal(parts['#log-activity'].focused, true);
     assert.equal(fields.title.value, '');
@@ -75,7 +78,7 @@ test('quick-log controller preserves invalid input, adds valid input, updates hi
   assert.equal(dialog.removed, true);
 });
 
-test('area changes reset incompatible goals while keeping other fields and compatible goals', () => {
+test('area changes reset incompatible goals while keeping other fields and compatible goals', async () => {
   const context = setup('sample');
   const { fields } = context;
   try {
@@ -92,19 +95,19 @@ test('area changes reset incompatible goals while keeping other fields and compa
   } finally { context.restore(); }
 });
 
-test('incomplete browser number input cannot be silently submitted as an omitted duration', () => {
+test('incomplete browser number input cannot be silently submitted as an omitted duration', async () => {
   const context = setup();
   try {
     fill(context.fields, { title: 'Work', areaId: 'personal', occurredOn: '2026-11-12', durationMinutes: '' });
     context.fields.durationMinutes.validity.badInput = true;
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.equal(context.workspace.getData().activities.length, 0);
     assert.match(context.errors['test-durationMinutes-error'].textContent, /whole number/);
     assert.equal(context.fields.title.value, 'Work');
   } finally { context.restore(); }
 });
 
-test('closing and reopening retains the draft; unmounting removes the dialog and listener', () => {
+test('closing and reopening retains the draft; unmounting removes the dialog and listener', async () => {
   const context = setup();
   try {
     context.parts['#log-activity'].fire('click');
@@ -119,7 +122,7 @@ test('closing and reopening retains the draft; unmounting removes the dialog and
 });
 
 
-test('quick-log opened after goal creation offers and links the new matching goal', function () {
+test('quick-log opened after goal creation offers and links the new matching goal', async function () {
   const workspace = createWorkspace();
   const result = workspace.addGoal({ title: 'Learn arrays', areaId: 'academics' });
   const context = setup('personal', workspace);
@@ -130,9 +133,42 @@ test('quick-log opened after goal creation offers and links the new matching goa
     context.fields.goalId.value = result.goal.id;
     context.fields.title.value = 'Practiced two problems';
     context.fields.occurredOn.value = '2026-11-12';
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.equal(workspace.getData().activities[0].goalId, result.goal.id);
     assert.match(context.parts['#activity-history'].innerHTML, /Goal: Learn arrays/);
+  } finally {
+    context.restore();
+  }
+});
+
+test('quick-log prevents duplicate submissions, keeps the draft on failure, and allows retry', async function () {
+  const workspace = createWorkspace();
+  const addActivity = workspace.addActivity;
+  let rejectWrite;
+  let attempts = 0;
+  workspace.addActivity = function save(input, mode) {
+    attempts += 1;
+    if (attempts > 1) return addActivity(input, mode);
+    return new Promise(function waitForWrite(_resolve, reject) { rejectWrite = reject; });
+  };
+  const context = setup('personal', workspace);
+  try {
+    context.parts['#log-activity'].fire('click');
+    fill(context.fields, { title: 'Practice', areaId: 'academics', occurredOn: '2026-11-12' });
+    const pending = context.form.fire('submit');
+    assert.equal(context.submit.disabled, true);
+    await context.form.fire('submit');
+    assert.equal(attempts, 1);
+    assert.equal(workspace.getData().activities.length, 0);
+    rejectWrite(new Error('Storage unavailable'));
+    await pending;
+    assert.equal(context.fields.title.value, 'Practice');
+    assert.match(context.notice.textContent, /Could not save/);
+    assert.equal(context.dialog.open, true);
+    await context.form.fire('submit');
+    assert.equal(attempts, 2);
+    assert.equal(workspace.getData().activities.length, 1);
+    assert.equal(context.dialog.open, false);
   } finally {
     context.restore();
   }

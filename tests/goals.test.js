@@ -88,7 +88,7 @@ test('sample and personal goals stay isolated and refresh starts a fresh collect
 test('Goals renders empty states, temporary notices, and newly created goal cards', function () {
   assert.match(renderGoals(), /No goals yet/);
   assert.match(renderGoalList(), /<button[^>]*id="create-goal-empty">Create Goal<\/button>/);
-  assert.match(renderGoals(), /disappear on refresh/);
+  assert.match(renderGoals(), /saved in this browser/);
   assert.match(renderGoals({}, { sample: true }), /Sample workspace/);
   const workspace = createWorkspace({ now: now });
   workspace.addGoal({ title: 'Learn arrays', areaId: 'academics', description: 'Work through three examples.', targetDate: '2026-12-01' });

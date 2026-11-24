@@ -1,7 +1,6 @@
 import { escapeHtml, renderButton, renderEmptyState, renderField } from '../components/ui.js';
-import { hasRecordedDuration } from '../data/activity.js';
 import { goalStatusOptions } from '../data/goals.js';
-import { sortRecentActivities } from '../data/overview.js';
+import { hasRecordedDuration, sortRecentActivities } from '../data/overview.js';
 import { renderActivityEntry } from './activity.js';
 import { getGoalAreaName, getStatusLabel, renderGoalTargetDate } from './goals.js';
 

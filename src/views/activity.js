@@ -1,8 +1,8 @@
 import { escapeHtml, renderButton, renderEmptyState, renderField } from '../components/ui.js';
-import { sortRecentActivities, parseCalendarDate } from '../data/overview.js';
-import { ACTIVITY_LIMITS, availableGoals, hasRecordedDuration, localDateValue } from '../data/activity.js';
+import { sortRecentActivities, parseCalendarDate, hasRecordedDuration } from '../data/overview.js';
+import { ACTIVITY_LIMITS, availableGoals, filterActivities, localDateValue } from '../data/activity.js';
 
-function renderHistoryItem(activity, areas, goals) {
+function renderHistoryItem(activity, areas, goals, editable) {
   let areaName = 'Growth area unavailable';
   for (const area of areas) {
     if (area.id === activity.areaId) {
@@ -22,10 +22,19 @@ function renderHistoryItem(activity, areas, goals) {
   }
 
   const contextHtml = `<p class="recent-meta">${escapeHtml(areaName)}</p>${goalHtml}`;
-  return renderActivityEntry(activity, contextHtml);
+  let actions = '';
+  if (editable) {
+    const id = escapeHtml(activity.id);
+    const title = escapeHtml(activity.title);
+    actions = `<div class="ui-actions activity-actions">
+      <button class="ui-button ui-button--secondary" type="button" data-edit-activity="${id}" aria-label="Edit activity: ${title}">Edit</button>
+      <button class="ui-button ui-button--secondary" type="button" data-delete-activity="${id}" aria-label="Delete activity: ${title}">Delete</button>
+    </div>`;
+  }
+  return renderActivityEntry(activity, contextHtml, actions);
 }
 
-export function renderActivityEntry(activity, contextHtml = '') {
+export function renderActivityEntry(activity, contextHtml = '', actions = '') {
   let durationHtml = '';
   if (hasRecordedDuration(activity)) {
     durationHtml = `<p class="recent-meta">${activity.durationMinutes} min</p>`;
@@ -43,18 +52,23 @@ export function renderActivityEntry(activity, contextHtml = '') {
   }
 
   return `<li class="recent-item"><div><h3>${escapeHtml(activity.title)}</h3>
-    ${contextHtml}${durationHtml}${noteHtml}</div>${dateHtml}</li>`;
+    ${contextHtml}${durationHtml}${noteHtml}${actions}</div>${dateHtml}</li>`;
 }
 
-export function renderActivityHistory(data = {}) {
+export function renderActivityHistory(data = {}, options = {}) {
   const areas = data.areas || [];
   const goals = data.goals || [];
-  const activities = data.activities || [];
+  const activities = filterActivities(data.activities || [], options.filters);
   if (activities.length === 0) {
+    if (options.filters && Object.values(options.filters).some(Boolean)) {
+      return renderEmptyState({
+        id: 'activity-filter-empty', title: 'No matching activities',
+        message: 'Change or reset the filters to see more of your history.',
+      });
+    }
     return renderEmptyState({
       id: 'activity-empty-title', title: 'Every bit of effort has a place.',
-      message: 'No activities yet. Log something you’ve done to start your temporary history.',
-      detail: 'Entries are held in memory and disappear on refresh.',
+      message: 'No activities yet. Log something you’ve done to start your history.',
       action: { label: 'Back to overview', href: '#/overview' },
     });
   }
@@ -62,42 +76,72 @@ export function renderActivityHistory(data = {}) {
   const sortedActivities = sortRecentActivities(activities);
   let itemsHtml = '';
   for (const activity of sortedActivities) {
-    itemsHtml += renderHistoryItem(activity, areas, goals);
+    itemsHtml += renderHistoryItem(activity, areas, goals, options.editable);
   }
   return `<ul class="recent-list ui-card">${itemsHtml}</ul>`;
 }
 
+function renderActivityFilters(data) {
+  const areas = [{ value: '', label: 'All growth areas' }];
+  for (const area of data.areas || []) {
+    const suffix = area.archivedAt == null ? '' : ' (archived)';
+    areas.push({ value: area.id, label: area.name + suffix });
+  }
+  const goals = [{ value: '', label: 'All goals' }];
+  for (const goal of data.goals || []) {
+    goals.push({ value: goal.id, label: goal.title });
+  }
+  return `<form id="activity-filters" class="ui-card ui-stack" aria-label="Filter activity history">
+    ${renderField({ id: 'filter-query', name: 'query', label: 'Search titles or notes' })}
+    <div class="filter-grid">
+      ${renderField({ id: 'filter-area', name: 'areaId', label: 'Filter by growth area', type: 'select', options: areas })}
+      ${renderField({ id: 'filter-goal', name: 'goalId', label: 'Filter by connected goal', type: 'select', options: goals })}
+      ${renderField({ id: 'filter-from', name: 'from', label: 'From date', type: 'date' })}
+      ${renderField({ id: 'filter-to', name: 'to', label: 'To date', type: 'date' })}
+    </div>
+    <div class="ui-actions">${renderButton({ label: 'Reset filters', id: 'reset-activity-filters', variant: 'secondary' })}</div>
+    <p id="activity-filter-error" class="ui-error" role="alert"></p>
+  </form>`;
+}
+
 export function renderActivity(data = {}, options = {}) {
-  let workspaceMessage = 'Temporary workspace. Log completed work using the starter growth areas.';
-  let badge = 'Temporary entries';
+  let workspaceMessage = 'Activities are saved in this browser.';
+  let badge = 'Personal workspace';
   if (options.sample) {
-    workspaceMessage = 'Sample workspace. Illustrative records and any entries you add here stay separate from your personal workspace.';
+    workspaceMessage = 'Sample workspace. Illustrative records and any entries you add here stay separate from your personal workspace and reset on reload.';
     badge = 'Sample data';
   }
 
   return `<div class="page-heading"><p class="eyebrow">THE WORK YOU PUT IN</p><h1>Activity<span>.</span></h1><p>A record of the things you’ve done, big and small.</p></div>
-    <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${workspaceMessage} Entries are held in memory only and disappear on refresh.</p><span class="small-tag">${badge}</span></div>
+    <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${workspaceMessage}</p><span class="small-tag">${badge}</span></div>
     <div class="section-heading activity-heading"><div><h2 id="activity-history-title">Activity history</h2><p>Completed work, newest first.</p></div>${renderButton({ label: 'Log Activity', id: 'log-activity' })}</div>
+    ${renderActivityFilters(data)}
     <p id="activity-status" class="ui-hint" role="status"></p>
-    <section id="activity-history" aria-labelledby="activity-history-title">${renderActivityHistory(data)}</section>`;
+    <section id="activity-history" tabindex="-1" aria-labelledby="activity-history-title">${renderActivityHistory(data, { editable: true })}</section>`;
 }
 
-export function renderGoalOptions(goals = [], areaId = '') {
+export function renderGoalOptions(goals = [], areaId = '', original = null, archivedArea = false) {
   const options = [{ value: '', label: 'No connected goal' }];
-  const matchingGoals = availableGoals(goals, areaId);
+  const matchingGoals = archivedArea ? [] : availableGoals(goals, areaId);
   for (const goal of matchingGoals) {
     options.push({ value: goal.id, label: goal.title });
+  }
+  if (original?.goalId && original.areaId === areaId && !matchingGoals.some(goal => goal.id === original.goalId)) {
+    const historical = goals.find(goal => goal.id === original.goalId && goal.areaId === areaId);
+    if (historical) options.push({ value: historical.id, label: historical.title + ' (existing link)' });
   }
   return options;
 }
 
-export function renderActivityForm(data = {}, now = new Date()) {
+export function renderActivityForm(data = {}, now = new Date(), activity = null) {
   const areas = data.areas || [];
   const goals = data.goals || [];
   const areaOptions = [{ value: '', label: 'Choose a growth area' }];
   for (const area of areas) {
     if (area.archivedAt == null) {
       areaOptions.push({ value: area.id, label: area.name });
+    } else if (area.id === activity?.areaId) {
+      areaOptions.push({ value: area.id, label: area.name + ' (archived)' });
     }
   }
   let areaHint = 'No growth areas are available.';
@@ -105,13 +149,17 @@ export function renderActivityForm(data = {}, now = new Date()) {
     areaHint = 'Choose the part of your journey this belongs to.';
   }
 
-  return `<form id="quick-log-form" class="ui-stack" novalidate>
-    ${renderField({ id: 'log-title', name: 'title', label: 'Activity title', required: true, maxLength: ACTIVITY_LIMITS.title, hint: 'Up to ' + ACTIVITY_LIMITS.title + ' characters.' })}
-    ${renderField({ id: 'log-area', name: 'areaId', type: 'select', label: 'Growth area', required: true, hint: areaHint, options: areaOptions })}
-    ${renderField({ id: 'log-date', name: 'occurredOn', type: 'date', label: 'Activity date', required: true, value: localDateValue(now) })}
-    ${renderField({ id: 'log-goal', name: 'goalId', type: 'select', label: 'Connected goal (optional)', options: renderGoalOptions(goals), hint: 'Only goals in the selected area appear.' })}
-    ${renderField({ id: 'log-duration', name: 'durationMinutes', type: 'number', label: 'Duration in minutes (optional)', min: 0, step: 1 })}
-    ${renderField({ id: 'log-note', name: 'note', type: 'textarea', label: 'Notes (optional)', maxLength: ACTIVITY_LIMITS.note, hint: 'Up to ' + ACTIVITY_LIMITS.note + ' characters.' })}
-    ${renderButton({ label: 'Add temporary activity', type: 'submit' })}
+  const areaId = activity?.areaId || '';
+  const archived = areas.some(area => area.id === areaId && area.archivedAt != null);
+  const prefix = activity ? 'edit-activity' : 'log';
+  return `<form id="${activity ? 'edit-activity-form' : 'quick-log-form'}" class="ui-stack" novalidate>
+    ${renderField({ id: prefix + '-title', name: 'title', label: 'Activity title', required: true, value: activity?.title, maxLength: ACTIVITY_LIMITS.title, hint: 'Up to ' + ACTIVITY_LIMITS.title + ' characters.' })}
+    ${renderField({ id: prefix + '-area', name: 'areaId', type: 'select', label: 'Growth area', required: true, value: areaId, hint: areaHint, options: areaOptions })}
+    ${renderField({ id: prefix + '-date', name: 'occurredOn', type: 'date', label: 'Activity date', required: true, value: activity?.occurredOn || localDateValue(now) })}
+    ${renderField({ id: prefix + '-goal', name: 'goalId', type: 'select', label: 'Connected goal (optional)', value: activity?.goalId || '', options: renderGoalOptions(goals, areaId, activity, archived), hint: 'Only goals in the selected area appear.' })}
+    ${renderField({ id: prefix + '-duration', name: 'durationMinutes', type: 'number', label: 'Duration in minutes (optional)', value: activity?.durationMinutes ?? '', min: 0, step: 1 })}
+    ${renderField({ id: prefix + '-note', name: 'note', type: 'textarea', label: 'Notes (optional)', value: activity?.note, maxLength: ACTIVITY_LIMITS.note, hint: 'Up to ' + ACTIVITY_LIMITS.note + ' characters.' })}
+    <p class="ui-error" role="alert"></p>
+    ${renderButton({ label: 'Save Activity', type: 'submit' })}
   </form>`;
 }

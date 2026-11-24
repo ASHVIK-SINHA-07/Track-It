@@ -1,9 +1,7 @@
 import { icon } from '../components/icons.js';
 import { escapeHtml, renderEmptyState } from '../components/ui.js';
 import { parseCalendarDate, sortRecentActivities, summarizeOverview } from '../data/overview.js';
-
-const allowedColors = ['sage', 'blue', 'purple', 'sand', 'rose'];
-const allowedIcons = ['overview', 'activity', 'goals', 'leaf', 'check'];
+import { AREA_COLORS, AREA_ICONS } from '../data/areas.js';
 
 function renderArea(area, activities) {
   let count = 0;
@@ -15,9 +13,9 @@ function renderArea(area, activities) {
 
   // Only known CSS colors and icon names may be inserted into the markup.
   let color = 'sage';
-  if (allowedColors.includes(area.color)) color = area.color;
+  if (AREA_COLORS.includes(area.color)) color = area.color;
   let iconName = 'leaf';
-  if (allowedIcons.includes(area.icon)) iconName = area.icon;
+  if (AREA_ICONS.includes(area.icon)) iconName = area.icon;
   let descriptionHtml = '';
   if (area.description) descriptionHtml = `<p>${escapeHtml(area.description)}</p>`;
   let activityLabel = 'activities';
@@ -63,6 +61,21 @@ function renderSummaryCard(iconName, title, value, description) {
   return `<article class="ui-card summary-card"><div class="summary-label"><span>${title}</span>${icon(iconName)}</div><p class="summary-value">${value}</p><p class="muted">${description}</p></article>`;
 }
 
+function renderWeeklyProgress(summary) {
+  if (summary.weeklyActivities === 0) {
+    return '<p class="ui-card muted">No activities logged this week.</p>';
+  }
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const max = Math.max(...summary.dailyCounts);
+  let rows = '';
+  for (let index = 0; index < days.length; index += 1) {
+    const count = summary.dailyCounts[index];
+    const width = count / max * 100;
+    rows += `<li><span>${days[index]}</span><span class="week-track" aria-hidden="true"><span style="width:${width}%"></span></span><span>${count}</span></li>`;
+  }
+  return `<ul class="ui-card weekly-bars" aria-label="Activity count by day">${rows}</ul>`;
+}
+
 // The router supplies data. This view does not choose or modify the records.
 export function renderOverview(data = {}, options = {}) {
   const areas = data.areas || [];
@@ -72,7 +85,7 @@ export function renderOverview(data = {}, options = {}) {
   const summary = summarizeOverview(data, now);
   const recentActivities = sortRecentActivities(activities).slice(0, 5);
 
-  let workspaceMessage = 'Your activities are temporary and disappear on refresh. Starter growth areas are ready for logging.';
+  let workspaceMessage = 'Your workspace is saved in this browser.';
   let workspaceBadge = 'Personal workspace';
   let sampleLink = '?sample#/overview';
   let sampleLinkLabel = 'Explore sample data';
@@ -93,6 +106,7 @@ export function renderOverview(data = {}, options = {}) {
   if (goals.length > 0) goalsDescription = 'A little direction for your effort';
   let summaryHtml = renderSummaryCard('activity', 'Activities this week', summary.weeklyActivities, 'Monday–Sunday · local calendar');
   summaryHtml += renderSummaryCard('goals', 'Active goals', summary.activeGoals, goalsDescription);
+  summaryHtml += renderSummaryCard('activity', 'Time this week', summary.weeklyMinutes + ' min', 'Recorded activity duration');
   summaryHtml += renderSummaryCard('leaf', 'Growth areas', summary.growthAreas, 'Current, unarchived areas');
 
   let areaCardsHtml = '';
@@ -111,7 +125,7 @@ export function renderOverview(data = {}, options = {}) {
 
   let recentHtml = renderEmptyState({
     id: 'empty-activities', title: 'A fresh start',
-    message: 'No activities recorded yet. Open Activity to log completed work in this temporary workspace.', iconName: 'activity',
+    message: 'No activities recorded yet. Open Activity to log completed work.', iconName: 'activity',
   });
   if (recentActivities.length > 0) {
     let itemsHtml = '';
@@ -125,6 +139,10 @@ export function renderOverview(data = {}, options = {}) {
     <div class="page-heading"><p class="eyebrow">THE BIG PICTURE</p><h1>Your progress, at a glance<span>.</span></h1><p>A space for what you’ve done, and where it’s taking you.</p></div>
     <div class="foundation-note"><span class="status-dot" aria-hidden="true"></span><p>${workspaceMessage}</p><span class="small-tag">${workspaceBadge}</span><a class="text-link" href="${sampleLink}">${sampleLinkLabel}</a></div>
     <section class="summary-grid" aria-label="${summaryLabel}">${summaryHtml}</section>
+    <section class="growth-section" aria-labelledby="week-title">
+      <div class="section-heading"><div><h2 id="week-title">Weekly activity</h2><p>Activities per day, Monday through Sunday.</p></div></div>
+      ${renderWeeklyProgress(summary)}
+    </section>
     <section class="growth-section" aria-labelledby="growth-title">
       <div class="section-heading"><div><h2 id="growth-title">Room to grow</h2><p>The different parts of your journey, in one place.</p></div>${areasBadgeHtml}</div>
       ${growthHtml}

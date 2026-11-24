@@ -8,6 +8,7 @@ import { findGoal } from './data/goals.js';
 import { mountActivity } from './components/quick-log.js';
 import { mountGoals } from './components/create-goal.js';
 import { mountGoalDetail } from './components/goal-detail.js';
+import { mountSettings, renderSettings } from './components/settings.js';
 
 const goalDetailPrefix = '#/goals/';
 
@@ -28,6 +29,7 @@ export function startRouter(options = {}) {
   const main = document.querySelector('#main');
   let cleanUpActivity = null;
   let cleanUpGoals = null;
+  let cleanUpSettings = null;
 
   function renderRoute(moveFocus = false) {
     const isGoalDetail = location.hash.startsWith(goalDetailPrefix);
@@ -43,6 +45,7 @@ export function startRouter(options = {}) {
         }
       }
     }
+    if (location.hash === '#/settings') currentRoute = { id: 'settings', label: 'Settings' };
 
     const correctHash = '#/' + currentRoute.id;
     if (!isGoalDetail && location.hash !== correctHash) {
@@ -66,11 +69,18 @@ export function startRouter(options = {}) {
       cleanUpGoals();
       cleanUpGoals = null;
     }
+    if (cleanUpSettings) {
+      cleanUpSettings();
+      cleanUpSettings = null;
+    }
 
     const data = workspace.getData(mode);
     const viewOptions = { sample: isSample };
 
-    if (currentRoute.id === 'activity') {
+    if (currentRoute.id === 'settings') {
+      main.innerHTML = renderSettings(data, viewOptions);
+      cleanUpSettings = mountSettings(main, { workspace: workspace, mode: mode });
+    } else if (currentRoute.id === 'activity') {
       main.innerHTML = renderActivity(data, viewOptions);
       cleanUpActivity = mountActivityView(main, { workspace: workspace, mode: mode });
     } else if (isGoalDetail) {
@@ -89,6 +99,8 @@ export function startRouter(options = {}) {
 
     document.title = currentRoute.label + ' · Track-It';
     document.querySelector('#current-view').textContent = currentRoute.label;
+    const workspaceLabel = document.querySelector('#workspace-mode');
+    if (workspaceLabel) workspaceLabel.textContent = isSample ? 'Sample workspace' : 'Personal workspace';
 
     const navigationLinks = document.querySelectorAll('[data-route]');
     for (const link of navigationLinks) {
@@ -111,7 +123,15 @@ export function startRouter(options = {}) {
   }
 
   function handlePageChange() {
-    renderRoute(true);
+    const pending = workspace.whenIdle();
+    if (!pending) {
+      renderRoute(true);
+      return;
+    }
+    const targetHash = location.hash;
+    pending.then(function afterWrite() {
+      if (location.hash === targetHash) renderRoute(true);
+    });
   }
 
   document.querySelector('.skip-link').addEventListener('click', skipToContent);

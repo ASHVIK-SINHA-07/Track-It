@@ -11,7 +11,7 @@ function createElement() {
     removeEventListener(name) { delete this.listeners[name]; },
     fire(name) {
       const event = { currentTarget: this, preventDefault: function () {} };
-      this.listeners[name](event);
+      return this.listeners[name](event);
     },
     append() {
       for (const child of arguments) this.children.push(child);
@@ -34,6 +34,7 @@ function setup(mode = 'personal') {
     errors['test-' + name + '-error'] = createElement();
   }
   const form = createElement();
+  form.querySelector = function () { return {}; };
   form.elements = { namedItem: function (name) { return fields[name]; } };
   form.reset = function () {
     for (const name of Object.keys(fields)) fields[name].value = '';
@@ -70,7 +71,7 @@ function setup(mode = 'personal') {
   return { workspace: workspace, fields: fields, errors: errors, form: form, opener: opener, emptyOpener: emptyOpener, list: list, status: status, dialog: body.children[0], restore: restore };
 }
 
-test('empty-state action opens the dialog and focus moves to the remaining action after creation', function () {
+test('empty-state action opens the dialog and focus moves to the remaining action after creation', async function () {
   const context = setup();
   try {
     context.emptyOpener.fire('click');
@@ -81,7 +82,7 @@ test('empty-state action opens the dialog and focus moves to the remaining actio
     context.emptyOpener.fire('click');
     context.fields.title.value = 'First goal';
     context.fields.areaId.value = 'academics';
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.match(context.list.innerHTML, /First goal/);
     assert.doesNotMatch(context.list.innerHTML, /create-goal-empty/);
     assert.equal(context.emptyOpener.listeners.click, undefined);
@@ -91,7 +92,7 @@ test('empty-state action opens the dialog and focus moves to the remaining actio
   }
 });
 
-test('goal dialog preserves failed input and updates cards, status, and form after successful creation', function () {
+test('goal dialog preserves failed input and updates cards, status, and form after successful creation', async function () {
   const context = setup();
   try {
     context.opener.fire('click');
@@ -99,7 +100,7 @@ test('goal dialog preserves failed input and updates cards, status, and form aft
     context.fields.title.value = '   ';
     context.fields.areaId.value = 'academics';
     context.fields.description.value = 'Keep my draft';
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.equal(context.workspace.getData().goals.length, 0);
     assert.equal(context.fields.description.value, 'Keep my draft');
     assert.equal(context.fields.title.focused, true);
@@ -107,11 +108,11 @@ test('goal dialog preserves failed input and updates cards, status, and form aft
     assert.equal(context.dialog.open, true);
 
     context.fields.title.value = 'Learn arrays';
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.equal(context.workspace.getData().goals.length, 1);
     assert.match(context.list.innerHTML, /Learn arrays/);
     assert.match(context.list.innerHTML, /Not started/);
-    assert.match(context.status.textContent, /disappear on refresh/);
+    assert.match(context.status.textContent, /saved/i);
     assert.equal(context.fields.title.value, '');
     assert.equal(context.fields.description.value, '');
     assert.equal(context.errors['test-title-error'].hidden, true);
@@ -124,14 +125,14 @@ test('goal dialog preserves failed input and updates cards, status, and form aft
   assert.equal(context.opener.listeners.click, undefined);
 });
 
-test('incomplete optional date input is reported and closing/reopening retains the goal draft', function () {
+test('incomplete optional date input is reported and closing/reopening retains the goal draft', async function () {
   const context = setup();
   try {
     context.opener.fire('click');
     context.fields.title.value = 'Keep this goal';
     context.fields.areaId.value = 'personal';
     context.fields.targetDate.validity.badInput = true;
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.equal(context.workspace.getData().goals.length, 0);
     assert.match(context.errors['test-targetDate-error'].textContent, /valid calendar date/);
     assert.equal(context.fields.targetDate.focused, true);
@@ -145,12 +146,12 @@ test('incomplete optional date input is reported and closing/reopening retains t
   }
 });
 
-test('goal controller writes only to the selected sample workspace', function () {
+test('goal controller writes only to the selected sample workspace', async function () {
   const context = setup('sample');
   try {
     context.fields.title.value = 'Sample-only goal';
     context.fields.areaId.value = 'personal';
-    context.form.fire('submit');
+    await context.form.fire('submit');
     assert.equal(context.workspace.getData('sample').goals.length, 4);
     assert.equal(context.workspace.getData().goals.length, 0);
     assert.match(context.list.innerHTML, /Sample-only goal/);

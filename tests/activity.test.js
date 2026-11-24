@@ -129,3 +129,13 @@ test('history and form escape all user-controlled text', () => {
     assert.match(html, /&lt;img/);
   }
 });
+
+test('create and edit forms use distinct label and error IDs for the same activity fields', function () {
+  const create = renderActivityForm(data, now);
+  const edit = renderActivityForm(data, now, { ...valid, title: 'Saved title' });
+  assert.match(create, /for="log-title"/);
+  assert.match(edit, /for="edit-activity-title"/);
+  assert.match(edit, /aria-describedby="edit-activity-title-hint edit-activity-title-error"/);
+  assert.match(edit, /value="Saved title"/);
+  assert.doesNotMatch(edit, /id="log-title"/);
+});

@@ -1,5 +1,5 @@
 import { createDialog } from './dialog.js';
-import { setFieldError } from './ui.js';
+import { setFieldError, storageErrorMessage } from './ui.js';
 import { renderGoalForm, renderGoalList } from '../views/goals.js';
 
 export function createGoalEditor(options) {
@@ -9,6 +9,9 @@ export function createGoalEditor(options) {
   const content = document.createElement('div');
   content.innerHTML = renderGoalForm(workspace.getData(mode), goal);
   const form = content.querySelector('form');
+  const submitButton = form.querySelector('button[type="submit"]');
+  const notice = form.querySelector('[role="alert"]');
+  let saving = false;
   const fieldNames = ['title', 'description', 'targetDate'];
   if (!goal) fieldNames.splice(1, 0, 'areaId');
 
@@ -21,12 +24,14 @@ export function createGoalEditor(options) {
     title: goal ? 'Edit Goal' : 'Create Goal',
     description: goal
       ? 'Edit this goal’s title, description, or target date.'
-      : 'Temporary goals only. Nothing is saved after a refresh. Closing keeps your draft while you stay on this page.',
+      : 'Choose a growth area for this goal.',
     content: content,
   });
   document.body.append(dialog.element);
 
   function open(trigger) {
+    if (saving) return;
+    notice.textContent = '';
     if (goal) {
       form.reset();
       for (const name of fieldNames) setFieldError(getField(name));
@@ -34,8 +39,10 @@ export function createGoalEditor(options) {
     dialog.open(trigger);
   }
 
-  function submitGoal(event) {
+  async function submitGoal(event) {
     event.preventDefault();
+    if (saving) return;
+    notice.textContent = '';
     const input = {
       title: getField('title').value,
       description: getField('description').value,
@@ -47,14 +54,26 @@ export function createGoalEditor(options) {
     // An incomplete optional date must not be mistaken for a blank date.
     if (getField('targetDate').validity.badInput) {
       result = { errors: { targetDate: 'Enter a valid calendar date, or clear the field.' } };
-    } else if (goal) {
-      result = workspace.updateGoal(goal.id, input, mode);
     } else {
-      result = workspace.addGoal(input, mode);
+      saving = true;
+      submitButton.disabled = true;
+      dialog.setBusy(true);
+      try {
+        if (goal) result = await workspace.updateGoal(goal.id, input, mode);
+        else result = await workspace.addGoal(input, mode);
+      } catch (error) {
+        notice.textContent = storageErrorMessage(error, 'Could not save the goal. Try again.');
+        return;
+      } finally {
+        saving = false;
+        submitButton.disabled = false;
+        dialog.setBusy(false);
+      }
     }
 
+    if (!dialog.element.isConnected) return;
     if (result.errors.goal) {
-      form.querySelector('[role="alert"]').textContent = result.errors.goal;
+      notice.textContent = result.errors.goal;
       return;
     }
     let firstInvalidField = null;
@@ -110,7 +129,7 @@ export function mountGoals(main, options) {
       // The empty-state button is gone after the first goal is created.
       opener.focus();
     }
-    main.querySelector('#goals-status').textContent = 'Goal added to your temporary workspace. It will disappear on refresh.';
+    main.querySelector('#goals-status').textContent = mode === 'sample' ? 'Goal added to the sample workspace.' : 'Goal saved.';
   }
 
   function cleanUpGoals() {
