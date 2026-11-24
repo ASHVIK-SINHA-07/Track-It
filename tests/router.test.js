@@ -26,13 +26,19 @@ test('existing routes still render their actual views and update navigation meta
   try {
     let activityContext;
     let goalsContext;
+    let detailContext;
     let goalsUnmounts = 0;
+    let detailUnmounts = 0;
     let unmounts = 0;
     function mountGoalsForTest(_main, context) {
       goalsContext = context;
       return function cleanUpGoals() { goalsUnmounts += 1; };
     }
-    startRouter({ mountGoalsView: mountGoalsForTest, mountActivityView: (_main, context) => {
+    function mountDetailForTest(_main, context) {
+      detailContext = context;
+      return function cleanUpDetail() { detailUnmounts += 1; };
+    }
+    startRouter({ mountGoalsView: mountGoalsForTest, mountGoalDetailView: mountDetailForTest, mountActivityView: (_main, context) => {
       activityContext = context;
       return () => { unmounts++; };
     } });
@@ -81,6 +87,28 @@ test('existing routes still render their actual views and update navigation meta
     events.hashchange();
     assert.doesNotMatch(main.innerHTML, /Practiced two array problems/);
     assert.match(main.innerHTML, /Session-only reading/);
+
+    location.hash = '#/goals/' + createdGoal.goal.id;
+    events.hashchange();
+    assert.equal(location.hash, '#/goals/' + createdGoal.goal.id);
+    assert.equal(current.textContent, 'Goals');
+    assert.equal(detailContext.workspace, goalsContext.workspace);
+    assert.equal(links.find(link => link.attributes['aria-current'] === 'page').dataset.route, 'goals');
+    assert.match(main.innerHTML, /<h1>Session-only goal<\/h1>/);
+    for (const goalId of ['', 'missing', '%E0%A4%A']) {
+      location.hash = '#/goals/' + goalId;
+      events.hashchange();
+      assert.match(main.innerHTML, /Goal unavailable/);
+      assert.match(main.innerHTML, /href="#\/goals"/);
+    }
+    assert.equal(detailUnmounts, 1);
+
+    location.search = '?sample';
+    location.hash = '#/goals/%73ketches';
+    events.hashchange();
+    assert.equal(detailContext.mode, 'sample');
+    assert.match(main.innerHTML, /<h1>Try three sketch studies<\/h1>/);
+    assert.match(main.innerHTML, /Finished a shape study/);
     location.hash = '#/unknown';
     events.hashchange();
     assert.equal(location.hash, '#/overview');

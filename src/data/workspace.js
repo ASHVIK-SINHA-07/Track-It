@@ -1,7 +1,7 @@
 import { createStarterAreas } from './areas.js';
 import { createMockOverview } from './mock.js';
 import { validateActivity } from './activity.js';
-import { validateGoal } from './goals.js';
+import { findGoal, goalStatusOptions, validateGoal, validateGoalDetails } from './goals.js';
 
 // One workspace is created when the app starts. Refreshing clears its records.
 export function createWorkspace(options = {}) {
@@ -82,6 +82,45 @@ export function createWorkspace(options = {}) {
     return { errors: {}, goal: structuredClone(goal) };
   }
 
+  function updateGoal(goalId, input, mode = 'personal', date = new Date()) {
+    const goal = findGoal(getCollection(mode).goals, goalId);
+    if (!goal) {
+      return { errors: { goal: 'This goal is unavailable.' } };
+    }
+
+    const result = validateGoalDetails(input);
+    if (Object.keys(result.errors).length > 0) {
+      return result;
+    }
+
+    const timestamp = date.toISOString();
+    goal.title = result.value.title;
+    goal.description = result.value.description;
+    goal.targetDate = result.value.targetDate;
+    goal.updatedAt = timestamp;
+    return { errors: {}, goal: structuredClone(goal) };
+  }
+
+  function changeGoalStatus(goalId, status, mode = 'personal', date = new Date()) {
+    const goal = findGoal(getCollection(mode).goals, goalId);
+    if (!goal) {
+      return { errors: { goal: 'This goal is unavailable.' } };
+    }
+    if (!goalStatusOptions(goal.status).includes(status)) {
+      return { errors: { status: 'Choose an available status for this goal.' } };
+    }
+
+    goal.updatedAt = date.toISOString();
+    goal.status = status;
+    return { errors: {}, goal: structuredClone(goal) };
+  }
+
   // These functions remember the data above (a JavaScript closure).
-  return { getData: getData, addActivity: addActivity, addGoal: addGoal };
+  return {
+    getData: getData,
+    addActivity: addActivity,
+    addGoal: addGoal,
+    updateGoal: updateGoal,
+    changeGoalStatus: changeGoalStatus,
+  };
 }

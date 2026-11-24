@@ -1,6 +1,6 @@
 import { escapeHtml, renderButton, renderEmptyState, renderField } from '../components/ui.js';
 import { sortRecentActivities, parseCalendarDate } from '../data/overview.js';
-import { ACTIVITY_LIMITS, availableGoals, localDateValue } from '../data/activity.js';
+import { ACTIVITY_LIMITS, availableGoals, hasRecordedDuration, localDateValue } from '../data/activity.js';
 
 function renderHistoryItem(activity, areas, goals) {
   let areaName = 'Growth area unavailable';
@@ -21,8 +21,13 @@ function renderHistoryItem(activity, areas, goals) {
     }
   }
 
+  const contextHtml = `<p class="recent-meta">${escapeHtml(areaName)}</p>${goalHtml}`;
+  return renderActivityEntry(activity, contextHtml);
+}
+
+export function renderActivityEntry(activity, contextHtml = '') {
   let durationHtml = '';
-  if (Number.isSafeInteger(activity.durationMinutes) && activity.durationMinutes >= 0) {
+  if (hasRecordedDuration(activity)) {
     durationHtml = `<p class="recent-meta">${activity.durationMinutes} min</p>`;
   }
   let noteHtml = '';
@@ -38,8 +43,7 @@ function renderHistoryItem(activity, areas, goals) {
   }
 
   return `<li class="recent-item"><div><h3>${escapeHtml(activity.title)}</h3>
-    <p class="recent-meta">${escapeHtml(areaName)}</p>
-    ${goalHtml}${durationHtml}${noteHtml}</div>${dateHtml}</li>`;
+    ${contextHtml}${durationHtml}${noteHtml}</div>${dateHtml}</li>`;
 }
 
 export function renderActivityHistory(data = {}) {

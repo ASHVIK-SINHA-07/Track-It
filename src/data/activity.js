@@ -2,6 +2,10 @@ import { parseCalendarDate } from './overview.js';
 
 export const ACTIVITY_LIMITS = Object.freeze({ title: 160, note: 4000 });
 
+export function hasRecordedDuration(activity) {
+  return Number.isSafeInteger(activity.durationMinutes) && activity.durationMinutes >= 0;
+}
+
 export function localDateValue(now = new Date()) {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');

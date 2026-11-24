@@ -9,11 +9,9 @@ function getText(value) {
   return String(value);
 }
 
-export function validateGoal(input, data = {}) {
-  const areas = data.areas || [];
+export function validateGoalDetails(input) {
   const enteredTitle = getText(input.title);
   const title = enteredTitle.trim();
-  const areaId = getText(input.areaId);
   const description = getText(input.description);
   const enteredDate = getText(input.targetDate).trim();
   const errors = {};
@@ -27,17 +25,6 @@ export function validateGoal(input, data = {}) {
     errors.description = 'Use ' + GOAL_LIMITS.description + ' characters or fewer.';
   }
 
-  let areaIsValid = false;
-  for (const area of areas) {
-    if (area.id === areaId && area.archivedAt == null) {
-      areaIsValid = true;
-      break;
-    }
-  }
-  if (!areaIsValid) {
-    errors.areaId = 'Choose an available growth area.';
-  }
-
   let targetDate = null;
   if (enteredDate !== '') {
     targetDate = enteredDate;
@@ -48,8 +35,37 @@ export function validateGoal(input, data = {}) {
 
   return {
     errors: errors,
-    value: { title: title, areaId: areaId, description: description, targetDate: targetDate },
+    value: { title: title, description: description, targetDate: targetDate },
   };
+}
+
+export function validateGoal(input, data = {}) {
+  const result = validateGoalDetails(input);
+  const areaId = getText(input.areaId);
+  const areas = data.areas || [];
+  result.value.areaId = areaId;
+
+  for (const area of areas) {
+    if (area.id === areaId && area.archivedAt == null) {
+      return result;
+    }
+  }
+  result.errors.areaId = 'Choose an available growth area.';
+  return result;
+}
+
+export function findGoal(goals, goalId) {
+  for (const goal of goals) {
+    if (goal.id === goalId) return goal;
+  }
+  return null;
+}
+
+export function goalStatusOptions(status) {
+  if (status === 'not_started' || status === 'completed') return ['in_progress', 'archived'];
+  if (status === 'in_progress') return ['completed', 'archived'];
+  if (status === 'archived') return ['not_started', 'in_progress', 'completed'];
+  return [];
 }
 
 function compareGoals(first, second) {

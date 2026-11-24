@@ -67,7 +67,8 @@ export function renderField(options = {}) {
 
   let controlHtml = '';
   if (type === 'textarea') {
-    controlHtml = `<textarea ${attributes}${lengthLimit} rows="4">${escapeHtml(value)}</textarea>`;
+    // HTML strips the first newline after a textarea's opening tag.
+    controlHtml = `<textarea ${attributes}${lengthLimit} rows="4">\n${escapeHtml(value)}</textarea>`;
   } else if (type === 'select') {
     let optionsHtml = '';
     const choices = options.options || [];

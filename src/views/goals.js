@@ -2,7 +2,7 @@ import { escapeHtml, renderButton, renderEmptyState, renderField } from '../comp
 import { GOAL_LIMITS, sortGoals } from '../data/goals.js';
 import { parseCalendarDate } from '../data/overview.js';
 
-function getStatusLabel(status) {
+export function getStatusLabel(status) {
   if (status === 'not_started') return 'Not started';
   if (status === 'in_progress') return 'In progress';
   if (status === 'completed') return 'Completed';
@@ -10,15 +10,24 @@ function getStatusLabel(status) {
   return 'Status unavailable';
 }
 
-function renderGoalCard(goal, areas) {
-  let areaName = 'Growth area unavailable';
+export function getGoalAreaName(goal, areas) {
   for (const area of areas) {
     if (area.id === goal.areaId) {
-      areaName = area.name;
-      break;
+      return area.name;
     }
   }
+  return 'Growth area unavailable';
+}
 
+export function renderGoalTargetDate(targetDate) {
+  if (!targetDate) return '';
+  const date = parseCalendarDate(targetDate);
+  if (!date) return '<p class="recent-meta">Target date unavailable</p>';
+  const label = date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return `<p class="recent-meta">Target: <time datetime="${escapeHtml(targetDate)}">${escapeHtml(label)}</time></p>`;
+}
+
+function renderGoalCard(goal, areas) {
   let descriptionHtml = '';
   if (goal.description) {
     // Keep the card short; the full description remains in the workspace.
@@ -29,20 +38,14 @@ function renderGoalCard(goal, areas) {
     descriptionHtml = `<p class="recent-meta">${escapeHtml(description)}</p>`;
   }
 
-  let targetDateHtml = '';
-  if (goal.targetDate) {
-    const date = parseCalendarDate(goal.targetDate);
-    targetDateHtml = '<p class="recent-meta">Target date unavailable</p>';
-    if (date) {
-      const label = date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-      targetDateHtml = `<p class="recent-meta">Target: <time datetime="${escapeHtml(goal.targetDate)}">${escapeHtml(label)}</time></p>`;
-    }
+  let titleHtml = escapeHtml(goal.title);
+  if (goal.id) {
+    titleHtml = `<a class="goal-title-link" href="#/goals/${escapeHtml(encodeURIComponent(goal.id))}">${titleHtml}</a>`;
   }
-
-  return `<article class="ui-card"><h3>${escapeHtml(goal.title)}</h3>
-    <p class="recent-meta">${escapeHtml(areaName)}</p>
+  return `<article class="ui-card"><h3>${titleHtml}</h3>
+    <p class="recent-meta">${escapeHtml(getGoalAreaName(goal, areas))}</p>
     <p class="recent-meta"><span class="small-tag">Status: ${getStatusLabel(goal.status)}</span></p>
-    ${targetDateHtml}${descriptionHtml}</article>`;
+    ${renderGoalTargetDate(goal.targetDate)}${descriptionHtml}</article>`;
 }
 
 export function renderGoalList(data = {}) {
@@ -58,8 +61,17 @@ export function renderGoalList(data = {}) {
   }
 
   let cardsHtml = '';
+  let archivedHtml = '';
   for (const goal of sortGoals(goals)) {
-    cardsHtml += renderGoalCard(goal, areas);
+    const card = renderGoalCard(goal, areas);
+    if (goal.status === 'archived') {
+      archivedHtml += card;
+    } else {
+      cardsHtml += card;
+    }
+  }
+  if (archivedHtml) {
+    cardsHtml += `<section class="ui-stack" aria-labelledby="archived-goals-title"><h2 id="archived-goals-title">Archived goals</h2>${archivedHtml}</section>`;
   }
   return `<div class="ui-stack">${cardsHtml}</div>`;
 }
@@ -79,7 +91,28 @@ export function renderGoals(data = {}, options = {}) {
     <section id="goals-list" aria-labelledby="goals-list-title">${renderGoalList(data)}</section>`;
 }
 
-export function renderGoalForm(data = {}) {
+export function renderGoalForm(data = {}, goal = null) {
+  let areaHtml = '';
+  let statusHint = '';
+  let submitLabel = 'Save changes';
+  if (!goal) {
+    areaHtml = renderGoalAreaField(data);
+    statusHint = '<p class="ui-hint">New goals start with the status Not started.</p>';
+    submitLabel = 'Add temporary goal';
+  }
+
+  return `<form id="${goal ? 'edit-goal-form' : 'create-goal-form'}" class="ui-stack" novalidate>
+    ${renderField({ id: 'goal-title', name: 'title', label: 'Goal title', required: true, value: goal?.title, maxLength: GOAL_LIMITS.title, hint: 'Up to ' + GOAL_LIMITS.title + ' characters.' })}
+    ${areaHtml}
+    ${renderField({ id: 'goal-description', name: 'description', type: 'textarea', label: 'Description (optional)', value: goal?.description, maxLength: GOAL_LIMITS.description, hint: 'Up to ' + GOAL_LIMITS.description + ' characters.' })}
+    ${renderField({ id: 'goal-date', name: 'targetDate', type: 'date', label: 'Target date (optional)', value: goal?.targetDate ?? '' })}
+    ${statusHint}
+    ${goal ? '<p class="ui-error" role="alert"></p>' : ''}
+    ${renderButton({ label: submitLabel, type: 'submit' })}
+  </form>`;
+}
+
+function renderGoalAreaField(data) {
   const areas = data.areas || [];
   const areaOptions = [{ value: '', label: 'Choose a growth area' }];
   for (const area of areas) {
@@ -92,12 +125,5 @@ export function renderGoalForm(data = {}) {
     areaHint = 'Choose the part of your journey this belongs to.';
   }
 
-  return `<form id="create-goal-form" class="ui-stack" novalidate>
-    ${renderField({ id: 'goal-title', name: 'title', label: 'Goal title', required: true, maxLength: GOAL_LIMITS.title, hint: 'Up to ' + GOAL_LIMITS.title + ' characters.' })}
-    ${renderField({ id: 'goal-area', name: 'areaId', type: 'select', label: 'Growth area', required: true, options: areaOptions, hint: areaHint })}
-    ${renderField({ id: 'goal-description', name: 'description', type: 'textarea', label: 'Description (optional)', maxLength: GOAL_LIMITS.description, hint: 'Up to ' + GOAL_LIMITS.description + ' characters.' })}
-    ${renderField({ id: 'goal-date', name: 'targetDate', type: 'date', label: 'Target date (optional)' })}
-    <p class="ui-hint">New goals start with the status Not started.</p>
-    ${renderButton({ label: 'Add temporary goal', type: 'submit' })}
-  </form>`;
+  return renderField({ id: 'goal-area', name: 'areaId', type: 'select', label: 'Growth area', required: true, options: areaOptions, hint: areaHint });
 }

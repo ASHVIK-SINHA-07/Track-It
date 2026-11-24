@@ -93,7 +93,7 @@ test('Goals renders empty states, temporary notices, and newly created goal card
   const workspace = createWorkspace({ now: now });
   workspace.addGoal({ title: 'Learn arrays', areaId: 'academics', description: 'Work through three examples.', targetDate: '2026-12-01' });
   const html = renderGoals(workspace.getData());
-  assert.match(html, /<h3>Learn arrays<\/h3>/);
+  assert.match(html, /<h3><a [^>]*href="#\/goals\/temporary-goal-1">Learn arrays<\/a><\/h3>/);
   assert.match(html, /DSA &amp; Academics/);
   assert.match(html, /Status: Not started/);
   assert.match(html, /datetime="2026-12-01"/);

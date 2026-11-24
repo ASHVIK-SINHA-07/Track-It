@@ -2,21 +2,36 @@ import { routes } from './components/shell.js';
 import { renderOverview } from './views/overview.js';
 import { renderActivity } from './views/activity.js';
 import { renderGoals } from './views/goals.js';
+import { renderGoalDetail } from './views/goal-detail.js';
 import { createWorkspace } from './data/workspace.js';
+import { findGoal } from './data/goals.js';
 import { mountActivity } from './components/quick-log.js';
 import { mountGoals } from './components/create-goal.js';
+import { mountGoalDetail } from './components/goal-detail.js';
+
+const goalDetailPrefix = '#/goals/';
+
+function readGoalId(hash) {
+  try {
+    return decodeURIComponent(hash.slice(goalDetailPrefix.length));
+  } catch {
+    return '';
+  }
+}
 
 export function startRouter(options = {}) {
   // Tests can supply their own workspace and page setup functions.
   const workspace = options.workspace || createWorkspace();
   const mountActivityView = options.mountActivityView || mountActivity;
   const mountGoalsView = options.mountGoalsView || mountGoals;
+  const mountGoalDetailView = options.mountGoalDetailView || mountGoalDetail;
   const main = document.querySelector('#main');
   let cleanUpActivity = null;
   let cleanUpGoals = null;
 
   function renderRoute(moveFocus = false) {
-    const requestedPage = location.hash.slice(2);
+    const isGoalDetail = location.hash.startsWith(goalDetailPrefix);
+    const requestedPage = isGoalDetail ? 'goals' : location.hash.slice(2);
     let currentRoute = routes[0];
 
     // Start with Overview, then look for a route matching the URL.
@@ -30,7 +45,7 @@ export function startRouter(options = {}) {
     }
 
     const correctHash = '#/' + currentRoute.id;
-    if (location.hash !== correctHash) {
+    if (!isGoalDetail && location.hash !== correctHash) {
       history.replaceState(null, '', correctHash);
     }
 
@@ -58,6 +73,13 @@ export function startRouter(options = {}) {
     if (currentRoute.id === 'activity') {
       main.innerHTML = renderActivity(data, viewOptions);
       cleanUpActivity = mountActivityView(main, { workspace: workspace, mode: mode });
+    } else if (isGoalDetail) {
+      const goalId = readGoalId(location.hash);
+      const goal = findGoal(data.goals, goalId);
+      main.innerHTML = renderGoalDetail(data, goal, viewOptions);
+      if (goal) {
+        cleanUpGoals = mountGoalDetailView(main, { workspace: workspace, mode: mode, goal: goal, areas: data.areas });
+      }
     } else if (currentRoute.id === 'goals') {
       main.innerHTML = renderGoals(data, viewOptions);
       cleanUpGoals = mountGoalsView(main, { workspace: workspace, mode: mode });
